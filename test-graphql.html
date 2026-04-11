@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphQL Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@apollo/client@3.8.8/dist/bundle.min.js"></script>
+</head>
+<body>
+    <h1>GraphQL Connection Test</h1>
+    <button onclick="testHealthCheck()">Test System Health Check</button>
+    <div id="result"></div>
+
+    <script>
+        const { ApolloClient, InMemoryCache, gql } = ApolloBundle;
+
+        const client = new ApolloClient({
+            uri: 'http://localhost:8001/graphql/',
+            cache: new InMemoryCache(),
+        });
+
+        const SYSTEM_HEALTH_CHECK = gql`
+            query SystemHealthCheck {
+                systemHealthCheck {
+                    status
+                    available
+                }
+            }
+        `;
+
+        async function testHealthCheck() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                const result = await client.query({
+                    query: SYSTEM_HEALTH_CHECK,
+                });
+
+                console.log('GraphQL Result:', result);
+                resultDiv.innerHTML = `
+                    <h3>Success!</h3>
+                    <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error('GraphQL Error:', error);
+                resultDiv.innerHTML = `
+                    <h3>Error</h3>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

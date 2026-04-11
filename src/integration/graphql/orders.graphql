@@ -1,0 +1,667 @@
+import { gql } from '@apollo/client/core';
+
+// Create order mutation
+export const CREATE_ORDER_MUTATION = gql`
+  mutation CreateOrder($input: OrderInput!, $items: [OrderItemInput!]!) {
+    createOrder(input: $input, items: $items) {
+      success
+      message
+      order {
+        id
+        orderNumber
+        user {
+          id
+          username
+          email
+          firstName
+          lastName
+        }
+        customerName
+        phone
+        email
+        shippingAddress
+        wilaya {
+          id
+          wilayaId
+          nameAr
+          nameFr
+        }
+        subtotal
+        shippingCost
+        tax
+        discountAmount
+        totalAmount
+        status
+        paymentMethod
+        paymentStatus
+        notes
+        syncStatus
+        erpnextSalesOrderId
+        createdAt
+        updatedAt
+        items {
+          id
+          product {
+            id
+            nameAr
+            nameEn
+            slug
+            basePrice
+            images {
+              id
+              imageUrl
+              altText
+              isMain
+            }
+          }
+          material {
+            id
+            nameAr
+            nameEn
+            pricePerM2
+            isPremium
+            image
+          }
+          quantity
+          price
+          width
+          height
+          dimensionUnit
+          marbleTexture
+          customDesign
+        }
+        timeline {
+          id
+          status
+          note
+          createdAt
+        }
+      }
+    }
+  }
+`;
+
+// Get user orders
+export const USER_ORDERS_QUERY = gql`
+  query GetUserOrders($filter: OrderFilterInput, $first: Int, $after: String, $orderBy: String) {
+    userOrders(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      edges {
+        node {
+          id
+          orderNumber
+          customerName
+          phone
+          email
+          shippingAddress
+          wilaya {
+            id
+            wilayaId
+            nameAr
+            nameFr
+          }
+          subtotal
+          shippingCost
+          tax
+          discountAmount
+          totalAmount
+          status
+          paymentMethod
+          paymentStatus
+          notes
+          createdAt
+          updatedAt
+          items {
+            id
+            product {
+              id
+              nameAr
+              nameEn
+              slug
+              images {
+                id
+                imageUrl
+                altText
+                isMain
+              }
+            }
+            variant {
+              id
+              name
+              sku
+              price
+              stock
+              attributes
+            }
+            material {
+              id
+              nameAr
+              nameEn
+              pricePerM2
+              isPremium
+              image
+            }
+            quantity
+            price
+            totalPrice
+          }
+          timeline {
+            id
+            status
+            note
+            createdAt
+          }
+        }
+        cursor
+      }
+    }
+  }
+`;
+
+// Get my orders (simplified for OrderHistory)
+export const MY_ORDERS_QUERY = gql`
+  query GetMyOrders($page: Int, $limit: Int) {
+    myOrders(page: $page, limit: $limit) {
+      id
+      orderNumber
+      customerName
+      phone
+      email
+      shippingAddress
+      wilaya {
+        id
+        wilayaId
+        nameAr
+        nameFr
+      }
+      subtotal
+      shippingCost
+      tax
+      discountAmount
+      totalAmount
+      status
+      paymentMethod
+      paymentStatus
+      notes
+      createdAt
+      updatedAt
+      items {
+        id
+        product {
+          id
+          nameAr
+          nameEn
+          slug
+          images {
+            id
+            imageUrl
+            altText
+            isMain
+          }
+        }
+        material {
+          id
+          nameAr
+          nameEn
+          pricePerM2
+          isPremium
+          image
+        }
+        quantity
+        price
+        totalPrice
+      }
+    }
+    myOrdersCount
+  }
+`;
+
+// Get shipping zones (alias for Checkout component)
+export const SHIPPING_QUERY = gql`
+  query GetShipping {
+    activeShipping {
+      edges {
+        node {
+          id
+          wilayaId
+          nameAr
+          nameFr
+          stopDeskPrice
+          homeDeliveryPrice
+          isActive
+          regions
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
+// Get order by ID or order number
+export const ORDER_QUERY = gql`
+  query GetOrder($id: ID, $orderNumber: String) {
+    order(id: $id, orderNumber: $orderNumber) {
+      id
+      orderNumber
+      user {
+        id
+        username
+        email
+        firstName
+        lastName
+      }
+      customerName
+      phone
+      email
+      shippingAddress
+      wilaya {
+        id
+        wilayaId
+        nameAr
+        nameFr
+        stopDeskPrice
+        homeDeliveryPrice
+      }
+      subtotal
+      shippingCost
+      tax
+      discountAmount
+      totalAmount
+      status
+      paymentMethod
+      paymentStatus
+      notes
+      syncStatus
+      erpnextSalesOrderId
+      trackingNumber
+      deliveryDate
+      estimatedDeliveryDate
+      priority
+      source
+      ipAddress
+      userAgent
+      currency
+      exchangeRate
+      discountCode
+      couponId
+      refundedAmount
+      refundStatus
+      cancellationReason
+      cancelledAt
+      confirmedAt
+      shippedAt
+      deliveredAt
+      createdAt
+      updatedAt
+      items {
+        id
+        product {
+          id
+          nameAr
+          nameEn
+          slug
+          basePrice
+          descriptionAr
+          descriptionEn
+          images {
+            id
+            imageUrl
+            altText
+            isMain
+            sortOrder
+          }
+          category {
+            id
+            nameAr
+            nameEn
+            slug
+          }
+        }
+        variant {
+          id
+          name
+          sku
+          price
+          stock
+          attributes
+        }
+        material {
+          id
+          nameAr
+          nameEn
+          description
+          pricePerM2
+          isPremium
+          image
+          properties
+        }
+        quantity
+        price
+        totalPrice
+        notes
+        customAttributes
+      }
+      payments {
+        id
+        amount
+        method
+        status
+        transactionId
+        gateway
+        createdAt
+        updatedAt
+      }
+      timeline {
+        id
+        status
+        note
+        createdAt
+        createdBy {
+          id
+          username
+          firstName
+          lastName
+        }
+      }
+    }
+  }
+`;
+
+// Get all orders (admin)
+export const ALL_ORDERS_QUERY = gql`
+  query GetAllOrders($filter: OrderFilterInput, $first: Int, $after: String, $orderBy: String) {
+    allOrders(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      edges {
+        node {
+          id
+          orderNumber
+          user {
+            id
+            username
+            email
+            firstName
+            lastName
+          }
+          customerName
+          phone
+          email
+          shippingAddress
+          wilaya {
+            id
+            wilayaId
+            nameAr
+            nameFr
+          }
+          subtotal
+          shippingCost
+          tax
+          discountAmount
+          totalAmount
+          status
+          paymentMethod
+          paymentStatus
+          notes
+          syncStatus
+          erpnextSalesOrderId
+          createdAt
+          updatedAt
+          items {
+            id
+            product {
+              id
+              nameAr
+              nameEn
+              slug
+              images {
+                id
+                imageUrl
+                altText
+                isMain
+              }
+            }
+            variant {
+              id
+              name
+              sku
+              price
+              stock
+              attributes
+            }
+            material {
+              id
+              nameAr
+              nameEn
+              pricePerM2
+              isPremium
+              image
+            }
+            quantity
+            price
+            totalPrice
+          }
+          timeline {
+            id
+            status
+            note
+            createdAt
+          }
+        }
+        cursor
+      }
+    }
+  }
+`;
+
+// Update order status
+export const UPDATE_ORDER_STATUS_MUTATION = gql`
+  mutation UpdateOrderStatus($id: ID!, $status: String!, $note: String) {
+    updateOrderStatus(id: $id, status: $status, note: $note) {
+      success
+      message
+      order {
+        id
+        orderNumber
+        status
+        updatedAt
+        timeline {
+          id
+          status
+          note
+          createdAt
+        }
+      }
+    }
+  }
+`;
+
+// Update tracking number
+export const UPDATE_TRACKING_MUTATION = gql`
+  mutation UpdateTrackingNumber($id: ID!, $trackingNumber: String!) {
+    updateTrackingNumber(id: $id, trackingNumber: $trackingNumber) {
+      success
+      message
+      order {
+        id
+        orderNumber
+        trackingNumber
+        updatedAt
+      }
+    }
+  }
+`;
+
+// Cancel order
+export const CANCEL_ORDER_MUTATION = gql`
+  mutation CancelOrder($id: ID!, $reason: String!) {
+    cancelOrder(id: $id, reason: $reason) {
+      success
+      message
+      order {
+        id
+        orderNumber
+        status
+        updatedAt
+        timeline {
+          id
+          status
+          note
+          createdAt
+        }
+      }
+    }
+  }
+`;
+
+// Add order timeline entry
+export const ADD_TIMELINE_MUTATION = gql`
+  mutation AddTimelineEntry($orderId: ID!, $status: String!, $note: String) {
+    addTimelineEntry(orderId: $orderId, status: $status, note: $note) {
+      success
+      message
+      timelineEntry {
+        id
+        status
+        note
+        createdAt
+      }
+    }
+  }
+`;
+
+// Get order statistics
+export const ORDER_STATS_QUERY = gql`
+  query GetOrderStats($dateFrom: String, $dateTo: String) {
+    orderStats(dateFrom: $dateFrom, dateTo: $dateTo) {
+      totalOrders
+      totalRevenue
+      ordersByStatus {
+        status
+        count
+        revenue
+      }
+      ordersByPaymentMethod {
+        method
+        count
+        revenue
+      }
+      ordersByWilaya {
+        wilaya {
+          id
+          nameAr
+          nameFr
+        }
+        count
+        revenue
+      }
+    }
+  }
+`;
+
+// Generate PDF invoice
+export const GENERATE_INVOICE_MUTATION = gql`
+  mutation GenerateInvoice($orderId: ID!) {
+    generateInvoice(orderId: $orderId) {
+      success
+      message
+      invoiceUrl
+      invoiceNumber
+    }
+  }
+`;
+
+// Get order timeline
+export const ORDER_TIMELINE_QUERY = gql`
+  query GetOrderTimeline($orderId: ID!) {
+    orderTimeline(orderId: $orderId) {
+      id
+      status
+      note
+      createdAt
+      updatedAt
+      createdBy {
+        id
+        username
+        firstName
+        lastName
+        email
+      }
+      isAutomatic
+      metadata
+    }
+  }
+`;
+
+// Add timeline step
+export const ADD_TIMELINE_STEP_MUTATION = gql`
+  mutation AddTimelineStep($orderId: ID!, $status: String!, $note: String, $isAutomatic: Boolean, $metadata: JSON) {
+    addTimelineStep(orderId: $orderId, status: $status, note: $note, isAutomatic: $isAutomatic, metadata: $metadata) {
+      success
+      message
+      timelineEntry {
+        id
+        status
+        note
+        createdAt
+        createdBy {
+          id
+          username
+          firstName
+          lastName
+        }
+        isAutomatic
+        metadata
+      }
+    }
+  }
+`;
+
+// Get timeline statistics
+export const TIMELINE_STATS_QUERY = gql`
+  query GetTimelineStats($dateFrom: String, $dateTo: String) {
+    timelineStats(dateFrom: $dateFrom, dateTo: $dateTo) {
+      totalEntries
+      entriesByStatus {
+        status
+        count
+        avgTimeInStatus
+      }
+      entriesByUser {
+        user {
+          id
+          username
+          firstName
+          lastName
+        }
+        entryCount
+      }
+      recentActivity {
+        id
+        status
+        note
+        createdAt
+        order {
+          id
+          orderNumber
+          customerName
+        }
+        createdBy {
+          username
+          firstName
+          lastName
+        }
+      }
+    }
+  }
+`;

@@ -1,0 +1,76 @@
+# Customer Segments GraphQL Queries and Mutations
+
+# Query all customer segments
+query GetCustomerSegments {
+  customerSegments {
+    id
+    name
+    description
+    criteria
+    isActive
+    priority
+    createdAt
+    updatedAt
+  }
+}
+
+# Query a single customer segment by ID
+query GetCustomerSegment($id: ID!) {
+  customerSegment(id: $id) {
+    id
+    name
+    description
+    criteria
+    isActive
+    priority
+    createdAt
+    updatedAt
+  }
+}
+
+# Mutation to create a new customer segment
+mutation CreateCustomerSegment($input: CustomerSegmentInput!) {
+  createCustomerSegment(input: $input) {
+    success
+    message
+    segment {
+      id
+      name
+      description
+      criteria
+      isActive
+      priority
+      createdAt
+      updatedAt
+    }
+    errors
+  }
+}
+
+# Mutation to update an existing customer segment
+mutation UpdateCustomerSegment($id: ID!, $input: CustomerSegmentInput!) {
+  updateCustomerSegment(id: $id, input: $input) {
+    success
+    message
+    segment {
+      id
+      name
+      description
+      criteria
+      isActive
+      priority
+      createdAt
+      updatedAt
+    }
+    errors
+  }
+}
+
+# Input type for customer segment operations
+fragment CustomerSegmentInput on CustomerSegmentInput {
+  name
+  description
+  criteria
+  isActive
+  priority
+}

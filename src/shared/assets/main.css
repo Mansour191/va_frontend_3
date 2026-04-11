@@ -1,0 +1,430 @@
+/* frontend/src/assets/main.css */
+
+/* 1. جميع @import أولاً */
+@import 'primeicons/primeicons.css';
+
+/* 2. ثم التنسيقات المخصصة */
+@layer base {
+  html {
+    font-family: 'Inter', 'Cairo', system-ui, sans-serif;
+  }
+  
+  body {
+    background-color: #0A0A0A !important;
+    color: #F5F5F5 !important;
+  }
+  
+  #app {
+    background-color: #0A0A0A !important;
+    color: #F5F5F5 !important;
+    min-height: 100vh;
+  }
+  
+  .my-app-dark body {
+    background-color: #0A0A0A !important;
+    color: #F5F5F5 !important;
+  }
+  
+  .my-app-dark #app {
+    background-color: #0A0A0A !important;
+    color: #F5F5F5 !important;
+  }
+}
+
+/* Dark Luxury marble texture background */
+.marble-bg {
+  background: linear-gradient(135deg, 
+    #0A0A0A 0%, 
+    #1A1A1A 25%, 
+    #0F0F0F 50%, 
+    #1A1A1A 75%, 
+    #0A0A0A 100%);
+  background-size: 400% 400%;
+  animation: marble-shift 20s ease infinite;
+  position: relative;
+}
+
+.marble-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" /><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.05 0"/></filter></defs><rect width="100" height="100" filter="url(%23noise)" opacity="0.03"/></svg>');
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@keyframes marble-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Glassmorphism effect - Dark Luxury */
+.glass {
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.glass-dark {
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+/* Royal button styles - Dark Luxury */
+.btn-royal {
+  background: linear-gradient(135deg, #D4AF37 0%, #B8860B 50%, #D4AF37 100%);
+  color: #0A0A0A !important;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  transition: all 0.3s;
+  box-shadow: 0 10px 15px -3px rgba(212, 175, 55, 0.3), 0 4px 6px -2px rgba(212, 175, 55, 0.2);
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-royal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-royal:hover::before {
+  left: 100%;
+}
+
+.btn-royal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 20px -3px rgba(212, 175, 55, 0.4), 0 8px 10px -2px rgba(212, 175, 55, 0.3);
+}
+
+.btn-royal-outline {
+  border: 2px solid #D4AF37;
+  color: #D4AF37 !important;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  transition: all 0.3s;
+  background: transparent;
+}
+
+.btn-royal-outline:hover {
+  background: linear-gradient(135deg, #D4AF37 0%, #B8860B 50%, #D4AF37 100%);
+  color: #0A0A0A !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(212, 175, 55, 0.3), 0 4px 6px -2px rgba(212, 175, 55, 0.2);
+}
+
+/* Accent button styles */
+.btn-accent {
+  background-color: var(--color-accent, #FF7F50);
+  color: white;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+  box-shadow: 0 10px 15px -3px rgba(255, 127, 80, 0.2), 0 4px 6px -2px rgba(255, 127, 80, 0.1);
+}
+
+.btn-accent:hover {
+  background-color: #FF6B35;
+  transform: translateY(-1px);
+}
+
+/* Card styles - Dark Luxury */
+.card-royal {
+  background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%);
+  border-radius: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  padding: 1.5rem;
+  transition: all 0.3s;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  color: #F5F5F5;
+}
+
+.card-royal:hover {
+  border-color: rgba(212, 175, 55, 0.4);
+  box-shadow: 0 10px 15px -3px rgba(212, 175, 55, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.card-marble {
+  background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 50%, #0F0F0F 100%);
+  border-radius: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  color: #F5F5F5;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-marble::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" /><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.03 0"/></filter></defs><rect width="100" height="100" filter="url(%23noise)" opacity="0.05"/></svg>');
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.my-app-dark .card-royal {
+  background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%);
+  border-color: rgba(212, 175, 55, 0.3);
+  color: #F5F5F5;
+}
+
+.my-app-dark .card-marble {
+  background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 50%, #0F0F0F 100%);
+  border-color: rgba(212, 175, 55, 0.4);
+  color: #F5F5F5;
+}
+
+/* Status indicators */
+.status-live {
+  background-color: #DCFCE7;
+  color: #166534;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-busy {
+  background-color: #FEF3C7;
+  color: #92400E;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-idle {
+  background-color: #F3F4F6;
+  color: #374151;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Pulse animation */
+.pulse-live {
+  background-color: #22C55E;
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Sidebar styles with new colors */
+.sidebar-royal {
+  background: linear-gradient(to bottom, var(--color-primary, #2563EB), var(--color-secondary, #7C3AED));
+  color: white;
+}
+
+.my-app-dark .sidebar-royal {
+  background: linear-gradient(to bottom, var(--color-primary, #3B82F6), var(--color-secondary, #8B5CF6));
+}
+
+/* Dashboard grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+/* Force Dark Luxury theme - prevent any white backgrounds */
+.bg-white {
+  background-color: #0A0A0A !important;
+  color: #F5F5F5 !important;
+}
+
+.bg-gray-50 {
+  background-color: #0A0A0A !important;
+  color: #F5F5F5 !important;
+}
+
+.bg-gray-100 {
+  background-color: #0A0A0A !important;
+  color: #F5F5F5 !important;
+}
+
+.bg-gray-200 {
+  background-color: #1A1A1A !important;
+  color: #F5F5F5 !important;
+}
+
+.text-muted {
+  color: #F5F5F5/80 !important;
+}
+
+.text-secondary {
+  color: #F5F5F5/70 !important;
+}
+
+/* Ensure all cards and containers use dark theme */
+.card {
+  background-color: #0A0A0A !important;
+  border-color: rgba(212, 175, 55, 0.2) !important;
+  color: #F5F5F5 !important;
+}
+
+.card-header {
+  background-color: #0A0A0A !important;
+  border-color: rgba(212, 175, 55, 0.2) !important;
+  color: #F5F5F5 !important;
+}
+
+.card-body {
+  background-color: #0A0A0A !important;
+  color: #F5F5F5 !important;
+}
+
+/* Override any Bootstrap components */
+.form-control {
+  background-color: rgba(212, 175, 55, 0.05) !important;
+  border-color: rgba(212, 175, 55, 0.3) !important;
+  color: #F5F5F5 !important;
+}
+
+.form-control:focus {
+  background-color: rgba(212, 175, 55, 0.1) !important;
+  border-color: #D4AF37 !important;
+  color: #F5F5F5 !important;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1) !important;
+}
+
+.input-group-text {
+  background-color: #0A0A0A !important;
+  border-color: rgba(212, 175, 55, 0.3) !important;
+  color: #F5F5F5 !important;
+}
+
+/* Mobile-first responsive utilities */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Animation classes */
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out;
+}
+
+/* Utilities */
+.text-shadow {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.text-shadow-lg {
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.bg-marble-gradient {
+  background: linear-gradient(135deg, 
+    #fafafa 0%, 
+    #f4f4f5 25%, 
+    #e4e4e7 50%, 
+    #f4f4f5 75%, 
+    #fafafa 100%);
+}
+
+.bg-royal-gradient {
+  background: linear-gradient(135deg, 
+    #6366f1 0%, 
+    #4f46e5 50%, 
+    #4338ca 100%);
+}
+
+/* Primary gradient backgrounds */
+.bg-primary-gradient {
+  background: linear-gradient(135deg, 
+    var(--color-primary, #2563EB) 0%, 
+    var(--color-secondary, #7C3AED) 50%, 
+    var(--color-primary, #2563EB) 100%);
+}
+
+/* Accent gradient backgrounds */
+.bg-accent-gradient {
+  background: linear-gradient(135deg, 
+    var(--color-accent, #FF7F50) 0%, 
+    #FF6B35 50%, 
+    #FF5722 100%);
+}
+
+/* Keyframes */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

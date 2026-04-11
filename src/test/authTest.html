@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphQL Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; direction: rtl; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>🧪 GraphQL Authentication Test Suite</h1>
+    
+    <div class="test-section info">
+        <h3>معلومات الاختبار</h3>
+        <p>GraphQL Endpoint: <code>http://127.0.0.1:8000/graphql/</code></p>
+        <p>Frontend URL: <code>http://localhost:8080</code></p>
+    </div>
+
+    <div class="test-section">
+        <h3>1. اختبار الاتصال بـ GraphQL</h3>
+        <button onclick="testConnection()">اختبار الاتصال</button>
+        <div id="connection-result" class="hidden"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. اختبار تسجيل الدخول</h3>
+        <input type="text" id="login-username" placeholder="اسم المستخدم أو الإيميل" value="testuser">
+        <input type="password" id="login-password" placeholder="كلمة المرور" value="test123">
+        <button onclick="testLogin()">تسجيل الدخول</button>
+        <div id="login-result" class="hidden"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. اختبار المصادقة مع التوكن</h3>
+        <button onclick="testAuthenticatedRequest()">اختبار طلب مصادق</button>
+        <div id="auth-result" class="hidden"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>4. اختبار إنشاء حساب جديد</h3>
+        <input type="text" id="register-username" placeholder="اسم المستخدم">
+        <input type="email" id="register-email" placeholder="الإيميل">
+        <input type="password" id="register-password" placeholder="كلمة المرور">
+        <input type="password" id="register-confirm" placeholder="تأكيد كلمة المرور">
+        <input type="text" id="register-firstname" placeholder="الاسم الأول">
+        <input type="text" id="register-lastname" placeholder="الاسم الأخير">
+        <button onclick="testRegister()">إنشاء حساب</button>
+        <div id="register-result" class="hidden"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>5. اختبار Apollo Headers</h3>
+        <button onclick="testApolloHeaders()">اختبار Headers</button>
+        <div id="headers-result" class="hidden"></div>
+    </div>
+
+    <script>
+        const GRAPHQL_URL = 'http://127.0.0.1:8000/graphql/';
+        let currentToken = null;
+
+        async function makeGraphQLRequest(query, variables = {}) {
+            const response = await fetch(GRAPHQL_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(currentToken && { 'Authorization': `Bearer ${currentToken}` })
+                },
+                body: JSON.stringify({ query, variables })
+            });
+            return await response.json();
+        }
+
+        function showResult(elementId, result, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.className = `test-section ${isSuccess ? 'success' : 'error'}`;
+            element.innerHTML = `
+                <h4>${isSuccess ? '✅ نجح' : '❌ فشل'}</h4>
+                <pre>${JSON.stringify(result, null, 2)}</pre>
+            `;
+            element.classList.remove('hidden');
+        }
+
+        async function testConnection() {
+            try {
+                const result = await makeGraphQLRequest('{ __typename }');
+                showResult('connection-result', result, result.data);
+            } catch (error) {
+                showResult('connection-result', { error: error.message }, false);
+            }
+        }
+
+        async function testLogin() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                const query = `
+                    mutation {
+                        login(emailOrUsername: "${username}", password: "${password}") {
+                            success
+                            message
+                            user {
+                                id
+                                username
+                                email
+                                firstName
+                                lastName
+                                isStaff
+                            }
+                            tokens
+                        }
+                    }
+                `;
+                
+                const result = await makeGraphQLRequest(query);
+                
+                if (result.data?.login?.success) {
+                    currentToken = result.data.login.tokens;
+                    showResult('login-result', result.data, true);
+                } else {
+                    showResult('login-result', result.data, false);
+                }
+            } catch (error) {
+                showResult('login-result', { error: error.message }, false);
+            }
+        }
+
+        async function testAuthenticatedRequest() {
+            if (!currentToken) {
+                showResult('auth-result', { error: 'يجب تسجيل الدخول أولاً' }, false);
+                return;
+            }
+
+            try {
+                const query = `
+                    query {
+                        me {
+                            id
+                            username
+                            email
+                            firstName
+                            lastName
+                            isStaff
+                        }
+                    }
+                `;
+                
+                const result = await makeGraphQLRequest(query);
+                showResult('auth-result', result.data, result.data?.me);
+            } catch (error) {
+                showResult('auth-result', { error: error.message }, false);
+            }
+        }
+
+        async function testRegister() {
+            const username = document.getElementById('register-username').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const confirm = document.getElementById('register-confirm').value;
+            const firstName = document.getElementById('register-firstname').value;
+            const lastName = document.getElementById('register-lastname').value;
+
+            if (!username || !email || !password || !confirm || !firstName) {
+                showResult('register-result', { error: 'جميع الحقول مطلوبة' }, false);
+                return;
+            }
+
+            if (password !== confirm) {
+                showResult('register-result', { error: 'كلمات المرور غير متطابقة' }, false);
+                return;
+            }
+
+            try {
+                const query = `
+                    mutation {
+                        register(
+                            username: "${username}"
+                            email: "${email}"
+                            password: "${password}"
+                            passwordConfirm: "${confirm}"
+                            firstName: "${firstName}"
+                            lastName: "${lastName}"
+                        ) {
+                            success
+                            message
+                            user {
+                                id
+                                username
+                                email
+                            }
+                            tokens
+                        }
+                    }
+                `;
+                
+                const result = await makeGraphQLRequest(query);
+                
+                if (result.data?.register?.success) {
+                    currentToken = result.data.register.tokens;
+                    showResult('register-result', result.data, true);
+                } else {
+                    showResult('register-result', result.data, false);
+                }
+            } catch (error) {
+                showResult('register-result', { error: error.message }, false);
+            }
+        }
+
+        async function testApolloHeaders() {
+            if (!currentToken) {
+                showResult('headers-result', { error: 'يجب تسجيل الدخول أولاً' }, false);
+                return;
+            }
+
+            // Test by making a request and checking if headers are properly sent
+            try {
+                const query = `{ __typename }`;
+                
+                // Capture fetch to check headers
+                const originalFetch = window.fetch;
+                let capturedHeaders = null;
+                
+                window.fetch = function(url, options) {
+                    capturedHeaders = options?.headers;
+                    return originalFetch.call(this, url, options);
+                };
+                
+                const result = await makeGraphQLRequest(query);
+                
+                // Restore original fetch
+                window.fetch = originalFetch;
+                
+                const headerInfo = {
+                    hasAuth: !!capturedHeaders?.Authorization,
+                    authHeader: capturedHeaders?.Authorization,
+                    contentType: capturedHeaders?.['Content-Type'],
+                    headers: capturedHeaders
+                };
+                
+                showResult('headers-result', headerInfo, headerInfo.hasAuth);
+            } catch (error) {
+                showResult('headers-result', { error: error.message }, false);
+            }
+        }
+
+        // Auto-test connection on page load
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html>

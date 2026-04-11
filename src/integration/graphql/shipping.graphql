@@ -1,0 +1,164 @@
+import { gql } from '@apollo/client/core';
+
+// Get all active shipping zones
+export const ACTIVE_SHIPPING_QUERY = gql`
+  query GetActiveShipping {
+    activeShipping {
+      edges {
+        node {
+          id
+          wilayaId
+          nameAr
+          nameFr
+          stopDeskPrice
+          homeDeliveryPrice
+          isActive
+          regions
+          createdAt
+          updatedAt
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+    }
+  }
+`;
+
+// Get all shipping zones
+export const ALL_SHIPPING_QUERY = gql`
+  query GetAllShipping($filter: ShippingFilterInput, $first: Int, $after: String, $orderBy: String) {
+    allShipping(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
+      edges {
+        node {
+          id
+          wilayaId
+          nameAr
+          nameFr
+          stopDeskPrice
+          homeDeliveryPrice
+          isActive
+          regions
+          createdAt
+          updatedAt
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+    }
+  }
+`;
+
+// Get shipping zone by ID
+export const SHIPPING_QUERY = gql`
+  query GetShipping($id: ID!) {
+    shipping(id: $id) {
+      id
+      wilayaId
+      nameAr
+      nameFr
+      stopDeskPrice
+      homeDeliveryPrice
+      isActive
+      regions
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// Get shipping zones by wilaya ID filter
+export const SHIPPING_BY_WILAYA_QUERY = gql`
+  query GetShippingByWilaya($wilayaId: String!) {
+    allShipping(filter: { wilayaId: $wilayaId }) {
+      edges {
+        node {
+          id
+          wilayaId
+          nameAr
+          nameFr
+          stopDeskPrice
+          homeDeliveryPrice
+          isActive
+          regions
+          createdAt
+          updatedAt
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+    }
+  }
+`;
+
+// Update shipping prices mutation
+export const UPDATE_SHIPPING_PRICES_MUTATION = gql`
+  mutation UpdateShippingPrices(
+    $wilayaId: ID!
+    $stopDeskPrice: Float!
+    $homeDeliveryPrice: Float!
+  ) {
+    updateShippingPrices(
+      wilayaId: $wilayaId
+      stopDeskPrice: $stopDeskPrice
+      homeDeliveryPrice: $homeDeliveryPrice
+    ) {
+      success
+      message
+      shipping {
+        id
+        wilayaId
+        nameAr
+        nameFr
+        stopDeskPrice
+        homeDeliveryPrice
+        isActive
+        regions
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+// Toggle shipping status mutation
+export const TOGGLE_SHIPPING_STATUS_MUTATION = gql`
+  mutation ToggleShippingStatus(
+    $wilayaId: ID!
+    $isActive: Boolean!
+  ) {
+    toggleShippingStatus(
+      wilayaId: $wilayaId
+      isActive: $isActive
+    ) {
+      success
+      message
+      shipping {
+        id
+        wilayaId
+        nameAr
+        nameFr
+        stopDeskPrice
+        homeDeliveryPrice
+        isActive
+        regions
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;

@@ -1,0 +1,124 @@
+# Smart Alerts GraphQL Queries and Mutations
+
+# Query for active alerts
+query GetActiveAlerts {
+  activeAlerts {
+    id
+    name
+    type
+    message
+    is_active
+    conditions
+    created_at
+    last_triggered
+    trigger_count
+  }
+}
+
+# Query for all user alerts
+query GetMyAlerts {
+  myAlerts {
+    id
+    name
+    type
+    message
+    is_active
+    conditions
+    created_at
+    last_triggered
+    trigger_count
+  }
+}
+
+# Query for specific alert
+query GetAlert($id: ID!) {
+  alert(id: $id) {
+    id
+    name
+    type
+    message
+    is_active
+    conditions
+    created_at
+    last_triggered
+    trigger_count
+  }
+}
+
+# Query for alert summary
+query GetAlertSummary {
+  alertSummary {
+    total_alerts
+    active_alerts
+    alerts_by_type {
+      type
+      count
+      display
+    }
+  }
+}
+
+# Mutation to create custom alert
+mutation CreateCustomAlert($input: SmartAlertInput!) {
+  createCustomAlert(input: $input) {
+    success
+    message
+    alert {
+      id
+      name
+      type
+      message
+      is_active
+      conditions
+      created_at
+      last_triggered
+      trigger_count
+    }
+  }
+}
+
+# Mutation to toggle alert status
+mutation ToggleAlertStatus($alertId: ID!) {
+  toggleAlertStatus(alertId: $alertId) {
+    success
+    message
+    alert {
+      id
+      name
+      type
+      message
+      is_active
+      conditions
+      created_at
+      last_triggered
+      trigger_count
+    }
+  }
+}
+
+# Mutation to update smart alert
+mutation UpdateSmartAlert($alertId: ID!, $input: SmartAlertUpdateInput!) {
+  updateSmartAlert(alertId: $alertId, input: $input) {
+    success
+    message
+    alert {
+      id
+      name
+      type
+      message
+      is_active
+      conditions
+      created_at
+      last_triggered
+      trigger_count
+    }
+  }
+}
+
+# Mutation to delete smart alert
+mutation DeleteSmartAlert($alertId: ID!) {
+  deleteSmartAlert(alertId: $alertId) {
+    success
+    message
+  }
+}

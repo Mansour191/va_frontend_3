@@ -1,0 +1,245 @@
+import { gql } from '@apollo/client';
+
+// All Materials Query
+export const ALL_MATERIALS_QUERY = gql`
+  query GetAllMaterials($filter: MaterialsFilterInput, $first: Int, $after: String) {
+    materials(filter: $filter, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          nameAr
+          nameEn
+          description
+          pricePerM2
+          isPremium
+          isActive
+          image
+          properties
+          createdAt
+          updatedAt
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+`;
+
+// Active Materials Only
+export const ACTIVE_MATERIALS_QUERY = gql`
+  query GetActiveMaterials($isPremium: Boolean, $first: Int) {
+    materials(filter: { isActive: true, isPremium: $isPremium }, first: $first) {
+      edges {
+        node {
+          id
+          nameAr
+          nameEn
+          description
+          pricePerM2
+          isPremium
+          isActive
+          image
+          properties
+          createdAt
+          updatedAt
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+    }
+  }
+`;
+
+// Premium Materials Only
+export const PREMIUM_MATERIALS_QUERY = gql`
+  query GetPremiumMaterials($first: Int) {
+    materials(filter: { isActive: true, isPremium: true }, first: $first) {
+      edges {
+        node {
+          id
+          nameAr
+          nameEn
+          description
+          pricePerM2
+          isPremium
+          isActive
+          image
+          properties
+          createdAt
+          updatedAt
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+    }
+  }
+`;
+
+// Material by ID
+export const MATERIAL_BY_ID_QUERY = gql`
+  query GetMaterialById($id: ID!) {
+    material(id: $id) {
+      id
+      nameAr
+      nameEn
+      description
+      pricePerM2
+      isPremium
+      isActive
+      image
+      properties
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// Material by Name/Slug
+export const MATERIAL_BY_NAME_QUERY = gql`
+  query GetMaterialByName($name: String!) {
+    materials(filter: { nameAr: $name }, first: 1) {
+      edges {
+        node {
+          id
+          nameAr
+          nameEn
+          description
+          pricePerM2
+          isPremium
+          isActive
+          image
+          properties
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
+// Materials with Price Calculation
+export const MATERIALS_WITH_PRICING_QUERY = gql`
+  query GetMaterialsWithPricing($width: Float!, $height: Float!, $filter: MaterialsFilterInput) {
+    materials(filter: $filter) {
+      edges {
+        node {
+          id
+          nameAr
+          nameEn
+          description
+          pricePerM2
+          isPremium
+          isActive
+          image
+          properties
+          createdAt
+          updatedAt
+        }
+        cursor
+      }
+    }
+    pricingEngine {
+      id
+      rawMaterialCost
+      laborCost
+      internationalShipping
+    }
+  }
+`;
+
+// Material Search Query
+export const SEARCH_MATERIALS_QUERY = gql`
+  query SearchMaterials($searchTerm: String!, $isPremium: Boolean, $first: Int) {
+    materials(
+      filter: { 
+        nameAr_Icontains: $searchTerm, 
+        nameEn_Icontains: $searchTerm,
+        isActive: true,
+        isPremium: $isPremium
+      }, 
+      first: $first
+    ) {
+      edges {
+        node {
+          id
+          nameAr
+          nameEn
+          description
+          pricePerM2
+          isPremium
+          isActive
+          image
+          properties
+          createdAt
+          updatedAt
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+    }
+  }
+`;
+
+// Material Categories (if materials have categories)
+export const MATERIAL_CATEGORIES_QUERY = gql`
+  query GetMaterialCategories {
+    materialCategories {
+      id
+      name
+      description
+      materials {
+        edges {
+          node {
+            id
+            nameAr
+            nameEn
+            pricePerM2
+            isPremium
+            image
+            properties
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Material Properties Schema Query
+export const MATERIAL_PROPERTIES_SCHEMA_QUERY = gql`
+  query GetMaterialPropertiesSchema {
+    materialPropertiesSchema {
+      types {
+        name
+        fields {
+          name
+          type
+          required
+          defaultValue
+          options
+          validation
+        }
+      }
+    }
+  }
+`;

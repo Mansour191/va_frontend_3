@@ -1,0 +1,49 @@
+import { gql } from '@apollo/client';
+
+// Query all users with auth_user and userprofile data
+export const ALL_USERS_QUERY = gql`
+  query AllUsers {
+    allUsers {
+      edges {
+        node {
+          id
+          username
+          email
+          isStaff
+          isActive
+          dateJoined
+          profile {
+            phone
+            avatar
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Mutation to disable/enable user account
+export const TOGGLE_USER_STATUS_MUTATION = gql`
+  mutation ToggleUserStatus($userId: ID!, $isActive: Boolean!) {
+    updateUserStatus(userId: $userId, isActive: $isActive) {
+      success
+      message
+      user {
+        id
+        isActive
+      }
+    }
+  }
+`;
+
+// Query for user statistics
+export const USER_STATS_QUERY = gql`
+  query UserStats {
+    userStats {
+      totalUsers
+      activeUsers
+      staffUsers
+      newUsersThisMonth
+    }
+  }
+`;

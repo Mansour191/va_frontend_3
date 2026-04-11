@@ -1,0 +1,192 @@
+import { gql } from '@apollo/client';
+
+// Categories Query with Tree Structure Support
+export const ALL_CATEGORIES_QUERY = gql`
+  query GetAllCategories {
+    categories {
+      id
+      nameAr
+      nameEn
+      slug
+      icon
+      image
+      description
+      wastePercent
+      isActive
+      parent {
+        id
+        nameAr
+        nameEn
+        slug
+      }
+      children {
+        id
+        nameAr
+        nameEn
+        slug
+        icon
+        image
+        description
+        wastePercent
+        isActive
+        parent {
+          id
+          nameAr
+          nameEn
+          slug
+        }
+        children {
+          id
+          nameAr
+          nameEn
+          slug
+          icon
+          image
+          description
+          wastePercent
+          isActive
+        }
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// Category by Slug Query
+export const CATEGORY_BY_SLUG_QUERY = gql`
+  query GetCategoryBySlug($slug: String!) {
+    category(slug: $slug) {
+      id
+      nameAr
+      nameEn
+      slug
+      icon
+      image
+      description
+      wastePercent
+      isActive
+      parent {
+        id
+        nameAr
+        nameEn
+        slug
+      }
+      children {
+        id
+        nameAr
+        nameEn
+        slug
+        icon
+        image
+        description
+        wastePercent
+        isActive
+        parent {
+          id
+          nameAr
+          nameEn
+          slug
+        }
+        children {
+          id
+          nameAr
+          nameEn
+          slug
+          icon
+          image
+          description
+          wastePercent
+          isActive
+        }
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// Root Categories (Top-level categories without parent)
+export const ROOT_CATEGORIES_QUERY = gql`
+  query GetRootCategories {
+    categories(filter: { hasParent: false }) {
+      id
+      nameAr
+      nameEn
+      slug
+      icon
+      image
+      description
+      wastePercent
+      isActive
+      children {
+        id
+        nameAr
+        nameEn
+        slug
+        icon
+        image
+        description
+        wastePercent
+        isActive
+        children {
+          id
+          nameAr
+          nameEn
+          slug
+          icon
+          image
+          description
+          wastePercent
+          isActive
+        }
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// Category Tree Query (Hierarchical structure)
+export const CATEGORY_TREE_QUERY = gql`
+  query GetCategoryTree {
+    categoryTree {
+      id
+      nameAr
+      nameEn
+      slug
+      icon
+      image
+      description
+      wastePercent
+      isActive
+      level
+      children {
+        id
+        nameAr
+        nameEn
+        slug
+        icon
+        image
+        description
+        wastePercent
+        isActive
+        level
+        children {
+          id
+          nameAr
+          nameEn
+          slug
+          icon
+          image
+          description
+          wastePercent
+          isActive
+          level
+        }
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;

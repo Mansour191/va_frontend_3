@@ -1,0 +1,219 @@
+/* Permission-based UI filtering styles */
+
+/* Base styles for permission-hidden elements */
+.permission-hidden {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+}
+
+/* Visual feedback for disabled buttons due to permissions */
+.v-btn[disabled]:not([v-can]) {
+  position: relative;
+}
+
+.v-btn[disabled]:not([v-can])::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FF9800"><path d="M12 2C6.48 2 2 7.52 2 9 4.5V20H22V6.5C22 4.48 20.52 2 20 2H12M12 5V20H7V9H12V5Z"/></svg>') no-repeat center;
+  background-size: contain;
+  opacity: 0.7;
+}
+
+/* Visual feedback for read-only fields */
+.v-field[readonly]:not([v-can]) .v-field__input {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  cursor: not-allowed !important;
+}
+
+.v-field[readonly]:not([v-can])::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23666"><path d="M12 2C6.48 2 2 7.52 2 9 4.5V20H22V6.5C22 4.48 20.52 2 20 2H12M12 5V20H7V9H12V5Z"/></svg>') no-repeat center;
+  background-size: contain;
+  opacity: 0.5;
+}
+
+/* Table row styling for permission-based visibility */
+.v-data-table__row.permission-hidden {
+  display: none !important;
+}
+
+/* Action buttons container with permission restrictions */
+.action-buttons {
+  position: relative;
+}
+
+.action-buttons .permission-hidden {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s ease;
+}
+
+/* Hover effects for permission-restricted elements */
+.v-btn:not([v-can]):hover {
+  position: relative;
+}
+
+.v-btn:not([v-can]):hover::before {
+  content: '🔒';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 12px;
+  z-index: 1;
+}
+
+/* Group container with mixed permissions */
+.permission-group {
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+}
+
+.permission-group.permission-restricted {
+  background-color: rgba(255, 152, 0, 0.1);
+  border-color: rgba(255, 152, 0, 0.3);
+}
+
+.permission-group.permission-restricted::before {
+  content: '🔒 بعض العناصر محمية';
+  position: absolute;
+  top: -12px;
+  right: 8px;
+  font-size: 11px;
+  color: #ff9800;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Navigation items with permissions */
+.nav-item.permission-hidden {
+  display: none !important;
+}
+
+.nav-item.permission-restricted {
+  opacity: 0.6;
+  position: relative;
+}
+
+.nav-item.permission-restricted::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+/* Form sections with permission restrictions */
+.form-section.permission-hidden {
+  display: none !important;
+}
+
+.form-section.permission-restricted {
+  opacity: 0.7;
+  pointer-events: none;
+  position: relative;
+}
+
+.form-section.permission-restricted::before {
+  content: '🔒 محمي';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 1;
+}
+
+/* Loading state for permissions */
+.permission-loading {
+  opacity: 0.5;
+  pointer-events: none;
+  position: relative;
+}
+
+.permission-loading::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid #2196f3;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .permission-hidden {
+    display: none !important;
+  }
+  
+  .permission-restricted {
+    opacity: 0.8;
+  }
+  
+  .action-buttons .permission-hidden {
+    position: static;
+    opacity: 0.3;
+    transform: scale(0.9);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .permission-group.permission-restricted {
+    background-color: rgba(255, 152, 0, 0.2);
+    border-color: rgba(255, 152, 0, 0.5);
+  }
+  
+  .v-field[readonly]:not([v-can])::before {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .permission-hidden {
+    display: none !important;
+  }
+  
+  .permission-restricted {
+    border: 2px dashed #ff9800;
+  }
+}

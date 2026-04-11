@@ -1,0 +1,199 @@
+import { gql } from '@apollo/client';
+
+// Query all groups with member count
+export const ALL_GROUPS_QUERY = gql`
+  query AllGroups {
+    allGroups {
+      edges {
+        node {
+          id
+          name
+          permissions {
+            edges {
+              node {
+                id
+                name
+                codename
+                contentType {
+                  id
+                  model
+                }
+              }
+            }
+          }
+          userGroups {
+            edges {
+              node {
+                id
+                user {
+                  id
+                  username
+                  email
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Query for groups with member count
+export const GROUPS_WITH_MEMBER_COUNT_QUERY = gql`
+ GroupsWithMemberCount {
+    allGroups {
+      edges {
+        node {
+          id
+          name
+          memberCount: userGroups {
+            totalCount
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Mutation to create a new group
+export const CREATE_GROUP_MUTATION = gql`
+  mutation CreateGroup($name: String!, $permissions: [ID!]) {
+    createGroup(input: {
+      name: $name
+      permissions: $permissions
+    }) {
+      success
+      message
+      group {
+        id
+        name
+        permissions {
+          edges {
+            node {
+              id
+              name
+              codename
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Mutation to update group
+export const UPDATE_GROUP_MUTATION = gql`
+  mutation UpdateGroup($id: ID!, $name: String!, $permissions: [ID!]) {
+    updateGroup(id: $id, input: {
+      name: $name
+      permissions: $permissions
+    }) {
+      success
+      message
+      group {
+        id
+        name
+        permissions {
+          edges {
+            node {
+              id
+              name
+              codename
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Mutation to delete group
+export const DELETE_GROUP_MUTATION = gql`
+  mutation DeleteGroup($id: ID!) {
+    deleteGroup(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
+// Mutation to assign user to group
+export const ASSIGN_USER_TO_GROUP_MUTATION = gql`
+  mutation AssignUserToGroup($userId: ID!, $groupId: ID!) {
+    assignUserToGroup(input: {
+      userId: $userId
+      groupId: $groupId
+    }) {
+      success
+      message
+      userGroup {
+        id
+        user {
+          id
+          username
+        }
+        group {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
+// Mutation to remove user from group
+export const REMOVE_USER_FROM_GROUP_MUTATION = gql`
+  mutation RemoveUserFromGroup($userId: ID!, $groupId: ID!) {
+    removeUserFromGroup(userId: $userId, groupId: $groupId) {
+      success
+      message
+    }
+  }
+`;
+
+// Query to get user groups
+export const USER_GROUPS_QUERY = gql`
+  query UserGroups($userId: ID!) {
+    userGroups(userId: $userId) {
+      edges {
+        node {
+          id
+          group {
+            id
+            name
+            permissions {
+              edges {
+                node {
+                  id
+                  name
+                  codename
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Query for all available permissions
+export const ALL_PERMISSIONS_QUERY = gql`
+  query AllPermissions {
+    allPermissions {
+      edges {
+        node {
+          id
+          name
+          codename
+          contentType {
+            id
+            model
+            appLabel
+          }
+        }
+      }
+    }
+  }
+`;

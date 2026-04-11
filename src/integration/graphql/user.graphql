@@ -1,0 +1,46 @@
+import { gql } from '@apollo/client';
+
+// User Profile Query
+export const ME_QUERY = gql`
+  query GetMe {
+    me {
+      id
+      username
+      email
+      firstName
+      lastName
+      isStaff
+      dateJoined
+      profile {
+        phone
+        address
+        bio
+        avatar
+        preferences
+        settings
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+// My Permissions Query - Gets current user's permissions
+export const MY_PERMISSIONS_QUERY = gql`
+  query MyPermissions {
+    myPermissions {
+      edges {
+        node {
+          id
+          name
+          codename
+          contentType {
+            id
+            model
+            appLabel
+          }
+        }
+      }
+    }
+  }
+`;

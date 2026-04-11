@@ -1,0 +1,401 @@
+src/
+│
+├── modules/
+│   ├── admin/                         # لوحة تحكم المشرف
+│   │   ├── layouts/
+│   │   │   ├── DashboardLayout.vue
+│   │   │   └── RoyalDashboardLayout.vue
+│   │   ├── views/
+│   │   │   ├── DashboardHome.vue
+│   │   │   ├── NavigationPage.vue
+│   │   │   ├── admin/
+│   │   │   │   ├── AlertsCenter.vue
+│   │   │   │   └── AutomationRules.vue
+│   │   │   ├── ai/
+│   │   │   │   ├── AIDashboard.vue
+│   │   │   │   ├── AIMonitor.vue
+│   │   │   │   ├── AITraining.vue
+│   │   │   │   └── RoyalAIDashboard.vue
+│   │   │   ├── analytics/
+│   │   │   │   ├── AdvancedAnalytics.vue
+│   │   │   │   ├── CustomerAnalytics.vue
+│   │   │   │   ├── CustomerInsights.vue
+│   │   │   │   ├── RecommendationsDashboard.vue
+│   │   │   │   └── SalesAnalytics.vue
+│   │   │   ├── content/
+│   │   │   │   ├── BlogManager.vue
+│   │   │   │   ├── ContentManager.vue
+│   │   │   │   └── MediaManager.vue
+│   │   │   ├── customers/
+│   │   │   │   ├── CustomerManager.vue
+│   │   │   │   └── ReviewsManager.vue
+│   │   │   ├── designs/
+│   │   │   │   └── DesignsManager.vue
+│   │   │   ├── forecasting/
+│   │   │   │   ├── ForecastDashboard.vue
+│   │   │   │   └── components/
+│   │   │   │       └── ForecastChart.vue
+│   │   │   ├── integration/
+│   │   │   │   ├── IntegrationDashboard.vue
+│   │   │   │   └── ERPNextSettings.vue
+│   │   │   ├── orders/
+│   │   │   │   ├── OrdersManager.vue
+│   │   │   │   └── components/
+│   │   │   │       └── OrdersTable.vue
+│   │   │   ├── pricing/
+│   │   │   │   ├── PricingManager.vue
+│   │   │   │   ├── PricingAnalytics.vue
+│   │   │   │   ├── PricingRules.vue
+│   │   │   │   └── components/
+│   │   │   │       ├── CreateRuleModal.vue
+│   │   │   │       └── EditRuleModal.vue
+│   │   │   ├── products/
+│   │   │   │   ├── ProductsManager.vue
+│   │   │   │   ├── RoyalProductsManager.vue
+│   │   │   │   └── components/
+│   │   │   │       ├── DeleteProductModal.vue
+│   │   │   │       ├── ProductCard.vue
+│   │   │   │       ├── ProductFilters.vue
+│   │   │   │       └── ProductsTable.vue
+│   │   │   ├── reports/
+│   │   │   │   └── UnifiedReports.vue
+│   │   │   ├── settings/
+│   │   │   │   ├── SettingsManager.vue
+│   │   │   │   └── SecuritySettings.vue
+│   │   │   ├── shop/
+│   │   │   │   ├── ShopManager.vue
+│   │   │   │   └── CartManager.vue
+│   │   │   └── users/
+│   │   │       ├── UsersManager.vue
+│   │   │       └── Profile.vue
+│   │   └── components/
+│   │       └── Sidebar.vue
+│   │
+│   ├── investor/                      # لوحة المستثمر
+│   │   ├── layouts/
+│   │   │   └── InvestorLayout.vue
+│   │   ├── views/
+│   │   │   ├── InvestorHub.vue
+│   │   │   ├── AIInsights.vue
+│   │   │   └── CreativeVoting.vue
+│   │   └── components/
+│   │       └── KPICard.vue
+│   │
+│   ├── customer/                      # صفحات العميل
+│   │   ├── views/
+│   │   │   ├── Profile.vue
+│   │   │   ├── Orders.vue
+│   │   │   ├── Wishlist.vue
+│   │   │   ├── Settings.vue
+│   │   │   ├── Addresses.vue
+│   │   │   ├── Payments.vue
+│   │   │   └── Notifications.vue
+│   │   └── components/
+│   │       └── ProfileSidebar.vue
+│   │
+│   ├── public/                        # الصفحات العامة
+│   │   ├── views/
+│   │   │   ├── Home.vue
+│   │   │   ├── About.vue
+│   │   │   ├── Contact.vue
+│   │   │   ├── Gallery.vue
+│   │   │   ├── Blog.vue
+│   │   │   ├── FAQ.vue
+│   │   │   ├── HowToOrder.vue
+│   │   │   ├── NotFound.vue
+│   │   │   ├── Post.vue
+│   │   │   ├── Privacy.vue
+│   │   │   ├── ShippingPolicy.vue
+│   │   │   ├── Terms.vue
+│   │   │   └── UserGuide.vue
+│   │   └── components/
+│   │       └── (لا يوجد)
+│   │
+│   ├── categories/                    # صفحات التصنيفات
+│   │   └── views/
+│   │       ├── Cars.vue
+│   │       ├── Ceilings.vue
+│   │       ├── Doors.vue
+│   │       ├── Furniture.vue
+│   │       ├── Kitchens.vue
+│   │       ├── Post.vue
+│   │       ├── Tiles.vue
+│   │       └── Walls.vue
+│   │
+│   ├── auth/                          # صفحات المصادقة
+│   │   └── views/
+│   │       ├── AuthAdvanced.vue
+│   │       ├── Login.vue
+│   │       ├── Register.vue
+│   │       ├── RegisterAdvanced.vue
+│   │       ├── ForgotPassword.vue
+│   │       ├── ResetPassword.vue
+│   │       └── VerifyEmail.vue
+│   │
+│   ├── shop/                          # صفحات المتجر
+│   │   └── views/
+│   │       ├── Cart.vue
+│   │       ├── Checkout.vue
+│   │       └── OrderSuccess.vue
+│   │
+│   └── products/                      # صفحات المنتجات
+│       └── views/
+│           ├── ProductDetail.vue
+│           ├── Shop.vue
+│           ├── Search.vue
+│           └── Wishlist.vue
+│
+├── shared/                            # الملفات المشتركة بين الجميع
+│   │
+│   ├── components/                    # مكونات Vue عامة
+│   │   ├── ui/                        # مكونات واجهة أساسية
+│   │   │   ├── BaseModal.vue
+│   │   │   ├── BaseTable.vue
+│   │   │   ├── Breadcrumbs.vue
+│   │   │   ├── Pagination.vue
+│   │   │   ├── StatCards.vue
+│   │   │   ├── Toast.vue
+│   │   │   ├── LoadingSpinner.vue
+│   │   │   ├── LoadingSkeleton.vue
+│   │   │   ├── ErrorBoundary.vue
+│   │   │   ├── UnsavedChangesDialog.vue
+│   │   │   ├── GlassChatbot.vue
+│   │   │   ├── RoyalDataTable.vue
+│   │   │   └── RoyalSidebar.vue
+│   │   │
+│   │   ├── layout/                    # تخطيط عام
+│   │   │   ├── AppHeader.vue
+│   │   │   ├── AppFooter.vue
+│   │   │   └── DefaultLayout.vue
+│   │   │
+│   │   ├── common/                    # مكونات مشتركة معقدة
+│   │   │   ├── LanguageSwitcher.vue
+│   │   │   ├── NotificationsDropdown.vue
+│   │   │   ├── FloatingChatbot.vue
+│   │   │   ├── ContactForm.vue
+│   │   │   └── AlertCenter.vue
+│   │   │
+│   │   └── (مكونات عامة أخرى)
+│   │       ├── HeroSlider.vue
+│   │       ├── ProductCard.vue
+│   │       ├── ProductGrid.vue
+│   │       ├── ProductImageGallery.vue
+│   │       ├── ProductReviews.vue
+│   │       ├── ProductSpecs.vue
+│   │       ├── ProductFAQ.vue
+│   │       ├── CategoryTemplate.vue
+│   │       ├── GoogleMap.vue
+│   │       ├── CurrencySelector.vue
+│   │       ├── WishlistButton.vue
+│   │       ├── HelloWorld.vue
+│   │       └── RecommendationsWidget.vue
+│   │
+│   ├── composables/                   # Vue Composables
+│   │   ├── useApi.js
+│   │   ├── useAuth.js
+│   │   ├── useGraphQL.js
+│   │   ├── useTheme.js
+│   │   ├── useInfiniteScroll.js
+│   │   └── useAnimations.js
+│   │
+│   ├── services/                      # الخدمات المشتركة
+│   │   ├── http/                      # HTTP clients
+│   │   │   ├── HttpClient.js
+│   │   │   └── ApiErrorLogger.js
+│   │   ├── graphql/                   # GraphQL clients
+│   │   │   ├── apollo.js
+│   │   │   ├── apolloClient.js
+│   │   │   ├── apolloOptimized.js
+│   │   │   ├── queries.js
+│   │   │   ├── enhancedQueries.js
+│   │   │   ├── mutations.js
+│   │   │   ├── enhancedMutations.js
+│   │   │   └── subscriptions.js
+│   │   ├── ai/                        # AI services
+│   │   │   ├── AIService.js
+│   │   │   ├── AIServiceNew.js
+│   │   │   ├── AIServiceGraphQL.js
+│   │   │   ├── AIMonitorService.js
+│   │   │   ├── AILearningService.js
+│   │   │   ├── PricingService.js
+│   │   │   ├── PricingService_backup.js
+│   │   │   └── PricingRulesService.js
+│   │   ├── business/                  # Business logic
+│   │   │   ├── ChatService.js
+│   │   │   ├── ProductService.js
+│   │   │   ├── ProductsService.js
+│   │   │   ├── OrderService.js
+│   │   │   ├── OrdersService.js
+│   │   │   ├── CartService.js
+│   │   │   ├── CheckoutService.js
+│   │   │   ├── WishlistService.js
+│   │   │   ├── UserService.js
+│   │   │   ├── CustomerService.js
+│   │   │   ├── AdminService.js
+│   │   │   ├── SettingsService.js
+│   │   │   ├── ContentService.js
+│   │   │   ├── BlogService.js
+│   │   │   ├── NavigationService.js
+│   │   │   ├── MediaService.js
+│   │   │   ├── ReportsService.js
+│   │   │   ├── ReviewsService.js
+│   │   │   └── ShopService.js
+│   │   ├── integration/               # Integration services
+│   │   │   ├── ERPNextService.js
+│   │   │   ├── ERPNextService_DEPRECATED.js
+│   │   │   ├── ERPNextSyncService.js
+│   │   │   └── index.js
+│   │   ├── graphql-modules/           # GraphQL modules
+│   │   │   ├── GraphQLService.js
+│   │   │   ├── GraphQLAIService.js
+│   │   │   ├── GraphQLCartService.js
+│   │   │   ├── GraphQLDashboardService.js
+│   │   │   ├── GraphQLOrderService.js
+│   │   │   ├── GraphQLPricingService.js
+│   │   │   ├── GraphQLProductService.js
+│   │   │   ├── GraphQLSearchService.js
+│   │   │   ├── GraphQLStreamingService.js
+│   │   │   ├── GraphQLTestService.js
+│   │   │   └── GraphQLUserService.js
+│   │   └── base/
+│   │       ├── BaseService.js
+│   │       ├── SecurityService.js
+│   │       └── DashboardService_DEPRECATED.js
+│   │
+│   ├── integration/                   # خدمات التكامل مع الأنظمة الخارجية
+│   │   ├── config/
+│   │   │   ├── currency.config.js
+│   │   │   └── erpnext.config.js
+│   │   ├── services/
+│   │   │   ├── AddressService.js
+│   │   │   ├── AIMeasureService.js
+│   │   │   ├── AIService.js
+│   │   │   ├── AlertService.js
+│   │   │   ├── apollo.js
+│   │   │   ├── apolloOptimized.js
+│   │   │   ├── authGraphQL.js
+│   │   │   ├── AutomationService.js
+│   │   │   ├── BlogService.js
+│   │   │   ├── CartService.js
+│   │   │   ├── CategoryService.js
+│   │   │   ├── ChatService.js
+│   │   │   ├── CheckoutService.js
+│   │   │   ├── ContactService.js
+│   │   │   ├── CurrencyService.js
+│   │   │   ├── CustomerSyncService.js
+│   │   │   ├── drfAuth.js
+│   │   │   ├── EmailService.js
+│   │   │   ├── ERPNextService_DEPRECATED.js
+│   │   │   ├── FAQService.js
+│   │   │   ├── FooterService.js
+│   │   │   ├── graphql.js
+│   │   │   ├── LocationService.js
+│   │   │   ├── NotificationService.js
+│   │   │   ├── OrderService.js
+│   │   │   ├── OrderSyncService.js
+│   │   │   ├── PaymentService.js
+│   │   │   ├── PostService.js
+│   │   │   ├── ProductService.js
+│   │   │   ├── ProductSyncService.js
+│   │   │   ├── SearchService.js
+│   │   │   ├── SemanticSearchService.js
+│   │   │   ├── SettingsService.js
+│   │   │   └── WishlistService.js
+│   │   ├── store/
+│   │   │   └── index.js
+│   │   ├── utils/
+│   │   │   └── helpers.js
+│   │   └── ai/
+│   │       ├── customers/
+│   │       │   ├── BehaviorTracker.js
+│   │       │   ├── ChurnPredictor.js
+│   │       │   ├── CustomerAnalyticsService.js
+│   │       │   ├── CustomerSegmentation.js
+│   │       │   └── CustomerValue.js
+│   │       ├── forecasting/
+│   │       │   ├── ForecastService.js
+│   │       │   ├── data/
+│   │       │   │   └── DataCollector.js
+│   │       │   └── models/
+│   │       │       └── SimplePredictor.js
+│   │       ├── investor/
+│   │       │   └── InvestorAIService.js
+│   │       └── recommendations/
+│   │           ├── CollaborativeFilter.js
+│   │           ├── ProductAffinity.js
+│   │           └── RecommendationService.js
+│   │
+│   ├── plugins/                       # إضافات Vue
+│   │   ├── vuetify.js
+│   │   ├── i18n.js
+│   │   ├── primevue.js
+│   │   ├── apollo.js
+│   │   ├── apolloPlugin.js
+│   │   ├── AITranslation.js
+│   │   ├── seo.js
+│   │   ├── motion.js
+│   │   ├── autoAnimate.js
+│   │   └── vueuse.js
+│   │
+│   ├── router/                        # الراوتر الرئيسي والحراس
+│   │   ├── index.js
+│   │   ├── guards/
+│   │   │   └── auth.js
+│   │   └── routes/
+│   │       ├── index.js
+│   │       ├── admin.routes.js
+│   │       ├── investor.routes.js
+│   │       ├── customer.routes.js
+│   │       ├── auth.routes.js
+│   │       ├── categories.routes.js
+│   │       ├── profile.routes.js
+│   │       └── public.routes.js
+│   │
+│   ├── store/                         # Vuex Store
+│   │   ├── index.js
+│   │   ├── auth.js
+│   │   ├── chatbot.js
+│   │   ├── investor.js
+│   │   └── modules/
+│   │       ├── cart.js
+│   │       ├── products.js
+│   │       ├── reviews.js
+│   │       ├── ui.js
+│   │       ├── user.js
+│   │       └── wishlist.js
+│   │
+│   ├── utils/                         # دوال مساعدة
+│   │   ├── DateUtils.js
+│   │   ├── errorHandler.js
+│   │   ├── ApiDebugger.js
+│   │   ├── ApiTest_DEPRECATED.js
+│   │   ├── testGraphQLAuth.js
+│   │   ├── testGraphQLAuthComplete.js
+│   │   └── testServices.js
+│   │
+│   ├── assets/                        # ملفات ثابتة
+│   │   ├── main.css
+│   │   ├── theme.css
+│   │   ├── theme-old.css
+│   │   ├── theme.css.backup
+│   │   ├── colors.css
+│   │   ├── logo.png
+│   │   └── (ملفات أخرى)
+│   │
+│   ├── locales/                       # ملفات الترجمة
+│   │   ├── ar.json
+│   │   ├── en.json
+│   │   ├── fr.json
+│   │   └── ch.json
+│   │
+│   └── firebase.js
+│
+├── stores/                            # Pinia Store
+│   └── auth.js
+│
+├── test/                              # ملفات الاختبار
+│   └── authTest.html
+│
+├── App.vue
+│
+└── main.js

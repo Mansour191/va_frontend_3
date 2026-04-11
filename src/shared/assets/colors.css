@@ -1,0 +1,31 @@
+/* src/assets/colors.css */
+:root {
+  --gold-primary: #D4AF37;
+  --gold-light: #FFD700;
+  --gold-dim: #B8860B;
+  --bg-deep: #0F0F0F;
+  --bg-dark: #1A1A1A;
+  --bg-card: #222222;
+  --text-primary: #FFFFFF;
+  --text-secondary: #E0E0E0;
+}
+
+.text-gold {
+  color: var(--gold-primary) !important;
+}
+
+.bg-gold {
+  background-color: var(--gold-primary) !important;
+}
+
+.gold-gradient {
+  background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-light) 50%, var(--gold-primary) 100%) !important;
+}
+
+.bg-dark-custom {
+  background-color: var(--bg-deep) !important;
+}
+
+.bg-card-custom {
+  background-color: var(--bg-card) !important;
+}

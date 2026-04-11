@@ -1,0 +1,165 @@
+import { gql } from '@apollo/client/core';
+
+// Get current user information
+export const ME_QUERY = gql`
+  query Me {
+    me {
+      id
+      username
+      email
+      firstName
+      lastName
+      isActive
+      isStaff
+      dateJoined
+      profile {
+        id
+        phone
+        address
+        bio
+        avatar
+        preferences
+        settings
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+// Update user profile
+export const UPDATE_PROFILE_MUTATION = gql`
+  mutation UpdateProfile($input: ProfileInput!) {
+    updateProfile(input: $input) {
+      success
+      message
+      user {
+        id
+        username
+        email
+        firstName
+        lastName
+        isActive
+        isStaff
+        dateJoined
+        profile {
+          id
+          phone
+          address
+          bio
+          avatar
+          preferences
+          settings
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
+// Update user email
+export const UPDATE_EMAIL_MUTATION = gql`
+  mutation UpdateEmail($email: String!, $password: String!) {
+    updateEmail(email: $email, password: $password) {
+      success
+      message
+      user {
+        id
+        username
+        email
+        firstName
+        lastName
+        isActive
+        isStaff
+        dateJoined
+      }
+    }
+  }
+`;
+
+// Change user password
+export const CHANGE_PASSWORD_MUTATION = gql`
+  mutation ChangePassword($currentPassword: String!, $newPassword: String!) {
+    changePassword(currentPassword: $currentPassword, newPassword: $newPassword) {
+      success
+      message
+    }
+  }
+`;
+
+// Update user preferences
+export const UPDATE_PREFERENCES_MUTATION = gql`
+  mutation UpdatePreferences($preferences: JSON!) {
+    updatePreferences(preferences: $preferences) {
+      success
+      message
+      user {
+        id
+        username
+        email
+        firstName
+        lastName
+        isActive
+        isStaff
+        dateJoined
+        profile {
+          id
+          preferences
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
+// Upload avatar
+export const UPLOAD_AVATAR_MUTATION = gql`
+  mutation UploadAvatar($file: Upload!) {
+    uploadAvatar(file: $file) {
+      success
+      message
+      avatarUrl
+      user {
+        id
+        profile {
+          id
+          avatar
+          updatedAt
+        }
+      }
+    }
+  }
+`;
+
+// Delete account
+export const DELETE_ACCOUNT_MUTATION = gql`
+  mutation DeleteAccount($password: String!) {
+    deleteAccount(password: $password) {
+      success
+      message
+    }
+  }
+`;
+
+// Refresh token
+export const REFRESH_TOKEN_MUTATION = gql`
+  mutation RefreshToken {
+    refreshToken {
+      success
+      message
+      token
+      refreshToken
+      user {
+        id
+        username
+        email
+        firstName
+        lastName
+        isActive
+        isStaff
+        dateJoined
+      }
+    }
+  }
+`;
