@@ -76,9 +76,42 @@
                   class="message-chip"
                   max-width="80%"
                 >
+                  <!-- Message Type Icon -->
+                  <v-icon
+                    v-if="msg.messageType && msg.messageType !== 'text'"
+                    :icon="getMessageTypeIcon(msg.messageType)"
+                    size="16"
+                    class="me-1"
+                    :color="msg.role === 'user' ? 'white' : 'grey-darken-1'"
+                  />
+                  
+                  <!-- Read Status Indicator -->
+                  <v-icon
+                    v-if="msg.role === 'user' && !msg.isRead"
+                    icon="mdi-check-all"
+                    size="14"
+                    class="ms-1"
+                    color="grey-lighten-2"
+                  />
+                  <v-icon
+                    v-else-if="msg.role === 'user' && msg.isRead"
+                    icon="mdi-check-all"
+                    size="14"
+                    class="ms-1"
+                    color="primary-lighten-2"
+                  />
+                  
                   <span class="text-body-2">{{ msg.text }}</span>
-                  <div class="text-caption mt-1 opacity-70">
-                    {{ msg.time }}
+                  <div class="text-caption mt-1 opacity-70 d-flex align-center">
+                    <span>{{ msg.time }}</span>
+                    <!-- Sentiment Score Indicator -->
+                    <v-icon
+                      v-if="msg.sentimentScore !== undefined && msg.sentimentScore !== null"
+                      :icon="getSentimentIcon(msg.sentimentScore)"
+                      size="12"
+                      class="ms-2"
+                      :color="getSentimentColor(msg.sentimentScore)"
+                    />
                   </div>
                 </v-chip>
               </div>
@@ -133,7 +166,7 @@
 <script setup>
 import { ref, nextTick, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import ChatService from '@/integration/services/ChatService';
+import ChatService from '@/shared/integration/services/ChatService';
 
 const { t } = useI18n();
 
@@ -151,14 +184,55 @@ const messages = ref([
 ]);
 
 // Methods
+const getMessageTypeIcon = (messageType) => {
+  switch (messageType) {
+    case 'image':
+      return 'mdi-image';
+    case 'file':
+      return 'mdi-file-document';
+    default:
+      return 'mdi-message-text';
+  }
+};
+
+const getSentimentIcon = (sentimentScore) => {
+  if (sentimentScore > 0.6) return 'mdi-emoticon-happy';
+  if (sentimentScore > 0.3) return 'mdi-emoticon-neutral';
+  return 'mdi-emoticon-sad';
+};
+
+const getSentimentColor = (sentimentScore) => {
+  if (sentimentScore > 0.6) return 'success';
+  if (sentimentScore > 0.3) return 'warning';
+  return 'error';
+};
+
+const markMessageAsRead = async (messageId) => {
+  try {
+    // Call GraphQL mutation to mark message as read
+    await ChatService.markAsRead(messageId);
+    // Update local message state
+    const message = messages.value.find(msg => msg.id === messageId);
+    if (message) {
+      message.isRead = true;
+    }
+  } catch (error) {
+    console.error('Error marking message as read:', error);
+  }
+};
+
 const sendMessage = async () => {
   if (!userInput.value.trim()) return;
 
-  // Add user message
+  // Add user message with new fields
   const userMessage = {
+    id: Date.now().toString(), // Temporary ID
     role: 'user',
     text: userInput.value,
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    messageType: 'text',
+    isRead: false,
+    sentimentScore: null
   };
   
   messages.value.push(userMessage);
@@ -175,17 +249,25 @@ const sendMessage = async () => {
     
     isTyping.value = false;
     messages.value.push({
+      id: (Date.now() + 1).toString(), // Temporary ID
       role: 'bot',
       text: response.message || t('chatbot.defaultResponse') || 'شكراً لتواصلك. فريق Paclos سيقوم بالرد على استفسارك في أقرب وقت ممكن.',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      messageType: 'text',
+      isRead: true, // Bot messages are auto-marked as read
+      sentimentScore: response.sentimentScore || null
     });
   } catch (error) {
     console.error('❌ Error sending message:', error);
     isTyping.value = false;
     messages.value.push({
+      id: (Date.now() + 1).toString(), // Temporary ID
       role: 'bot',
       text: t('chatbot.error') || 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      messageType: 'text',
+      isRead: true,
+      sentimentScore: null
     });
   }
 

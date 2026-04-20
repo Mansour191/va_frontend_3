@@ -23,9 +23,9 @@
               <div class="avatar-wrapper">
                 <v-avatar size="120" class="avatar-circle">
                   <v-img 
-                    v-if="user?.profile?.avatar" 
-                    :src="user.profile.avatar" 
-                    :alt="user?.firstName || user?.username"
+                    v-if="currentUser?.profile?.avatar" 
+                    :src="currentUser.profile.avatar" 
+                    :alt="currentUser?.firstName || currentUser?.username"
                   />
                   <v-icon v-else size="60" color="primary">mdi-account</v-icon>
                 </v-avatar>
@@ -45,10 +45,10 @@
               <!-- Profile Info -->
               <div class="profile-info">
                 <h1 class="text-h4 font-weight-bold mb-2">
-                  {{ user?.firstName || user?.username || 'مستخدم' }}
+                  {{ currentUser?.firstName || currentUser?.username || 'مستخدم' }}
                 </h1>
                 <p class="text-body-1 text-medium-emphasis mb-4">
-                  {{ user?.email || 'لا يوجد بريد إلكتروني' }}
+                  {{ currentUser?.email || 'لا يوجد بريد إلكتروني' }}
                 </p>
                 
                 <!-- Stats -->
@@ -139,7 +139,7 @@
                         <v-col cols="12" sm="6">
                           <v-label class="text-caption">الاسم الكامل:</v-label>
                           <div v-if="!settingsForm.isEditing" class="text-body-1">
-                            {{ user?.firstName || 'غير محدد' }} {{ user?.lastName || '' }}
+                            {{ currentUser?.firstName || 'غير محدد' }} {{ currentUser?.lastName || '' }}
                           </div>
                           <v-text-field
                             v-else
@@ -151,7 +151,7 @@
                         <v-col cols="12" sm="6">
                           <v-label class="text-caption">البريد الإلكتروني:</v-label>
                           <div v-if="!settingsForm.isEditing" class="text-body-1">
-                            {{ user?.email || 'غير محدد' }}
+                            {{ currentUser?.email || 'غير محدد' }}
                           </div>
                           <v-text-field
                             v-else
@@ -178,7 +178,7 @@
                         <v-col cols="12" sm="6">
                           <v-label class="text-caption">رقم الهاتف:</v-label>
                           <div v-if="!settingsForm.isEditing" class="text-body-1">
-                            {{ user?.phone || 'غير محدد' }}
+                            {{ currentUser?.phone || 'غير محدد' }}
                           </div>
                           <v-text-field
                             v-else
@@ -190,11 +190,52 @@
                         <v-col cols="12" sm="6">
                           <v-label class="text-caption">العنوان:</v-label>
                           <div v-if="!settingsForm.isEditing" class="text-body-1">
-                            {{ user?.address || 'غير محدد' }}
+                            {{ currentUser?.address || 'غير محدد' }}
                           </div>
                           <v-text-field
                             v-else
                             v-model="settingsForm.address"
+                            variant="outlined"
+                            density="compact"
+                          />
+                        </v-col>
+                      </v-row>
+                      
+                      <!-- Update Reason Field (only show when editing) -->
+                      <v-row v-if="settingsForm.isEditing">
+                        <v-col cols="12">
+                          <v-label class="text-caption">سبب التحديث (اختياري):</v-label>
+                          <v-text-field
+                            v-model="settingsForm.update_reason"
+                            variant="outlined"
+                            density="compact"
+                            placeholder="مثال: تحديث معلومات الاتصال، إضافة عنوان جديد..."
+                            hint="سيتم حفظ هذا السبب في سجل التغييرات"
+                            persistent-hint
+                          />
+                        </v-col>
+                      </v-row>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+                
+                <v-col cols="12" md="6">
+                  <v-card class="overview-card" elevation="2">
+                    <v-card-title>
+                      <v-icon class="me-2">mdi-phone</v-icon>
+                      معلومات الاتصال
+                    </v-card-title>
+                    
+                    <v-card-text>
+                      <v-row>
+                        <v-col cols="12" sm="6">
+                          <v-label class="text-caption">رقم الهاتف:</v-label>
+                          <div v-if="!settingsForm.isEditing" class="text-body-1">
+                            {{ currentUser?.phone || 'غير محدد' }}
+                          </div>
+                          <v-text-field
+                            v-else
+                            v-model="settingsForm.phone"
                             variant="outlined"
                             density="compact"
                           />
@@ -365,6 +406,11 @@
                 </v-col>
               </v-row>
             </v-window-item>
+            
+            <!-- Activity History Tab -->
+            <v-window-item value="history">
+              <ActivityHistory :user-id="currentUser?.id" />
+            </v-window-item>
           </v-window>
         </v-card-text>
       </v-card>
@@ -376,6 +422,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
+import ActivityHistory from '@/modules/customer/components/ActivityHistory.vue';
 
 const router = useRouter();
 const { user, isAuthenticated, updateProfile, uploadAvatar, isLoading, error, success } = useAuth();
@@ -401,7 +448,8 @@ const settingsForm = ref({
   lastName: '',
   email: '',
   phone: '',
-  address: ''
+  address: '',
+  update_reason: ''
 });
 
 const passwordForm = reactive({
@@ -425,7 +473,8 @@ const preferences = reactive({
 const tabs = ref([
   { name: 'overview', label: 'نظرة عامة', icon: 'mdi-view-dashboard' },
   { name: 'security', label: 'الأمان', icon: 'mdi-shield-account' },
-  { name: 'preferences', label: 'التفضيلات', icon: 'mdi-cog' }
+  { name: 'preferences', label: 'التفضيلات', icon: 'mdi-cog' },
+  { name: 'history', label: 'سجل التغييرات', icon: 'mdi-history' }
 ]);
 
 const themeOptions = [
@@ -440,37 +489,50 @@ const languageOptions = [
 ];
 
 // Computed
-const user = computed(() => authStore.user);
+const currentUser = computed(() => authStore.user);
 
-// Methods
-const uploadAvatar = () => {
-  console.log('Upload avatar functionality');
-};
+// uploadAvatar is imported from useAuth composable
 
 const editProfile = () => {
   settingsForm.value.isEditing = true;
   // Populate form with current user data
-  settingsForm.value.firstName = user.value?.firstName || '';
-  settingsForm.value.lastName = user.value?.lastName || '';
-  settingsForm.value.email = user.value?.email || '';
-  settingsForm.value.phone = user.value?.phone || '';
-  settingsForm.value.address = user.value?.address || '';
+  settingsForm.value.firstName = currentUser.value?.firstName || '';
+  settingsForm.value.lastName = currentUser.value?.lastName || '';
+  settingsForm.value.email = currentUser.value?.email || '';
+  settingsForm.value.phone = currentUser.value?.phone || '';
+  settingsForm.value.address = currentUser.value?.address || '';
 };
 
 const saveProfile = async () => {
   saving.value = true;
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Get device info for audit trail
+    const deviceInfo = navigator.userAgent || 'Unknown device';
     
-    // Update user data
-    console.log('Profile saved:', settingsForm.value);
-    settingsForm.value.isEditing = false;
+    const result = await updateProfile({
+      firstName: settingsForm.value.firstName,
+      lastName: settingsForm.value.lastName,
+      email: settingsForm.value.email,
+      phone: settingsForm.value.phone,
+      address: settingsForm.value.address,
+      update_reason: settingsForm.value.update_reason || null,
+      change_type: 'profile_update',
+      device_info: deviceInfo
+    });
     
-    // Show success message
-    // In real app, use toast or snackbar
+    if (result.success) {
+      settingsForm.value.isEditing = false;
+      // Clear update reason after successful save
+      settingsForm.value.update_reason = '';
+      
+      // Show success message (you can use a toast/snackbar here)
+      console.log('✅ Profile updated successfully:', result.message);
+    } else {
+      throw new Error(result.error || 'Profile update failed');
+    }
   } catch (error) {
-    console.error('Error saving profile:', error);
+    console.error('❌ Error saving profile:', error);
+    // Show error message (you can use a toast/snackbar here)
   } finally {
     saving.value = false;
   }

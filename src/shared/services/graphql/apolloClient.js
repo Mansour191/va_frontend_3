@@ -10,7 +10,7 @@ const getAuthToken = () => {
 }
 
 const httpLink = createHttpLink({
-  uri: '/graphql/', // Use proxy in development
+  uri: import.meta.env.VITE_GRAPHQL_URL || 'http://127.0.0.1:8000/graphql',
   credentials: 'same-origin'
 });
 

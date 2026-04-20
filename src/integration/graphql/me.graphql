@@ -27,10 +27,37 @@ export const ME_QUERY = gql`
   }
 `;
 
+// Get profile history/audit trail
+export const PROFILE_HISTORY_QUERY = gql`
+  query ProfileHistory($userId: ID) {
+    profileHistory(userId: $userId) {
+      id
+      phone
+      address
+      bio
+      avatar
+      preferences
+      settings
+      updateReason
+      updatedBy {
+        id
+        username
+        firstName
+        lastName
+      }
+      deviceInfo
+      changeType
+      snapshotDate
+      originalCreatedAt
+      originalUpdatedAt
+    }
+  }
+`;
+
 // Update user profile
 export const UPDATE_PROFILE_MUTATION = gql`
-  mutation UpdateProfile($input: ProfileInput!) {
-    updateProfile(input: $input) {
+  mutation UpdateProfile($firstName: String, $lastName: String, $email: String, $phone: String, $address: String, $bio: String, $preferences: JSON, $update_reason: String, $change_type: String, $device_info: String) {
+    updateProfile(firstName: $firstName, lastName: $lastName, email: $email, phone: $phone, address: $address, bio: $bio, preferences: $preferences, update_reason: $update_reason, change_type: $change_type, device_info: $device_info) {
       success
       message
       user {

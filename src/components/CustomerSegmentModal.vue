@@ -50,6 +50,23 @@
               </v-card-text>
             </v-col>
 
+            <!-- Criteria Rules JSON -->
+            <v-col cols="12">
+              <v-textarea
+                v-model="criteriaRulesText"
+                :label="$t('segmentCriteriaRules') || 'Segment Criteria Rules'"
+                variant="outlined"
+                prepend-inner-icon="mdi-code-json"
+                rows="4"
+                :placeholder="$t('criteriaRulesPlaceholder') || '{\n  &quot;rules&quot;: [\n    {&quot;field&quot;: &quot;totalSpent&quot;, &quot;operator&quot;: &quot;&gt;&quot;, &quot;value&quot;: 1000}\n  ]\n}'"
+                :error-messages="criteriaRulesError"
+                @input="validateCriteriaRules"
+              />
+              <v-card-text class="text-caption text-medium-emphasis mt-2">
+                {{ $t('criteriaRulesHelp') || 'Enter JSON rules for advanced segment filtering. Example: {"rules": [{"field": "totalSpent", "operator": ">", "value": 1000}]}' }}
+              </v-card-text>
+            </v-col>
+
             <!-- Priority and Status -->
             <v-col cols="12" md="6">
               <v-text-field
@@ -66,12 +83,39 @@
             </v-col>
 
             <v-col cols="12" md="6">
+              <v-select
+                v-model="formData.status"
+                :label="$t('status') || 'Status'"
+                :items="statusOptions"
+                item-title="text"
+                item-value="value"
+                variant="outlined"
+                prepend-inner-icon="mdi-flag"
+                :hint="$t('statusHint') || 'Controls the segment status in the system'"
+                persistent-hint
+              />
+            </v-col>
+
+            <v-col cols="12" md="6">
               <v-checkbox
                 v-model="formData.isActive"
                 :label="$t('isActive') || 'Active'"
                 color="primary"
                 :hint="$t('isActiveHint') || 'Only active segments will be used in analytics'"
                 persistent-hint
+              />
+            </v-col>
+
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="formData.lastSyncDate"
+                :label="$t('lastSyncDate') || 'Last Sync Date'"
+                type="datetime-local"
+                variant="outlined"
+                prepend-inner-icon="mdi-sync"
+                :hint="$t('lastSyncDateHint') || 'Last synchronization date with ERPNext'"
+                persistent-hint
+                clearable
               />
             </v-col>
           </v-row>
@@ -129,6 +173,8 @@ const valid = ref(false);
 const loading = ref(false);
 const criteriaText = ref('');
 const criteriaError = ref('');
+const criteriaRulesText = ref('');
+const criteriaRulesError = ref('');
 
 // Computed
 const isOpen = computed({
@@ -143,9 +189,20 @@ const formData = ref({
   name: '',
   description: '',
   criteria: {},
+  criteriaRules: {},
   isActive: true,
-  priority: 0
+  priority: 0,
+  status: 'active',
+  lastSyncDate: null
 });
+
+// Status options
+const statusOptions = [
+  { text: t('active') || 'Active', value: 'active' },
+  { text: t('inactive') || 'Inactive', value: 'inactive' },
+  { text: t('pending') || 'Pending', value: 'pending' },
+  { text: t('archived') || 'Archived', value: 'archived' }
+];
 
 // Validation rules
 const nameRules = [
@@ -176,16 +233,37 @@ const validateCriteria = () => {
   }
 };
 
+const validateCriteriaRules = () => {
+  try {
+    if (!criteriaRulesText.value.trim()) {
+      formData.value.criteriaRules = {};
+      criteriaRulesError.value = '';
+      return;
+    }
+    
+    const parsed = JSON.parse(criteriaRulesText.value);
+    formData.value.criteriaRules = parsed;
+    criteriaRulesError.value = '';
+  } catch (error) {
+    criteriaRulesError.value = t('invalidJson') || 'Invalid JSON format';
+  }
+};
+
 const resetForm = () => {
   formData.value = {
     name: '',
     description: '',
     criteria: {},
+    criteriaRules: {},
     isActive: true,
-    priority: 0
+    priority: 0,
+    status: 'active',
+    lastSyncDate: null
   };
   criteriaText.value = '';
   criteriaError.value = '';
+  criteriaRulesText.value = '';
+  criteriaRulesError.value = '';
   
   if (formRef.value) {
     formRef.value.resetValidation();
@@ -198,10 +276,14 @@ const loadSegmentData = () => {
       name: props.segment.name || '',
       description: props.segment.description || '',
       criteria: props.segment.criteria || {},
+      criteriaRules: props.segment.criteriaRules || {},
       isActive: props.segment.isActive ?? true,
-      priority: props.segment.priority || 0
+      priority: props.segment.priority || 0,
+      status: props.segment.status || 'active',
+      lastSyncDate: props.segment.lastSyncDate ? new Date(props.segment.lastSyncDate).toISOString().slice(0, 16) : null
     };
     criteriaText.value = JSON.stringify(formData.value.criteria, null, 2);
+    criteriaRulesText.value = JSON.stringify(formData.value.criteriaRules, null, 2);
   } else {
     resetForm();
   }
@@ -219,7 +301,8 @@ const handleSubmit = async () => {
   
   try {
     validateCriteria();
-    if (criteriaError.value) {
+    validateCriteriaRules();
+    if (criteriaError.value || criteriaRulesError.value) {
       loading.value = false;
       return;
     }
@@ -229,8 +312,11 @@ const handleSubmit = async () => {
         name: formData.value.name,
         description: formData.value.description,
         criteria: formData.value.criteria,
+        criteriaRules: formData.value.criteriaRules,
         isActive: formData.value.isActive,
-        priority: formData.value.priority
+        priority: formData.value.priority,
+        status: formData.value.status,
+        lastSyncDate: formData.value.lastSyncDate ? new Date(formData.value.lastSyncDate).toISOString() : null
       }
     };
 

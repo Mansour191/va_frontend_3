@@ -1,0 +1,121 @@
+# Conversation History GraphQL Queries and Mutations
+
+# Fragment for conversation history with all new fields
+fragment ConversationHistoryFields on ConversationHistoryType {
+  id
+  sessionId
+  role
+  message
+  messageType
+  source
+  language
+  confidence
+  sentimentScore
+  modelUsed
+  processingTime
+  isRead
+  relatedProject
+  metadata
+  context
+  userRating
+  userFeedback
+  isHelpful
+  isFlagged
+  flagReason
+  moderatorNotes
+  createdAt
+  user {
+    id
+    username
+    email
+  }
+}
+
+# Query to get conversation history for a specific session
+query GetSessionConversation($sessionId: String!) {
+  sessionConversation(sessionId: $sessionId) {
+    ...ConversationHistoryFields
+  }
+}
+
+# Query to get all conversation history (admin only)
+query GetAllConversationHistory {
+  conversationHistory {
+    ...ConversationHistoryFields
+  }
+}
+
+# Query to get conversation history with filters
+query GetFilteredConversationHistory(
+  $sessionId: String
+  $userId: ID
+  $role: String
+  $messageType: String
+  $isRead: Boolean
+  $relatedProject: String
+  $isFlagged: Boolean
+  $createdAfter: DateTime
+  $createdBefore: DateTime
+) {
+  conversationHistory(
+    sessionId: $sessionId
+    user: $userId
+    role: $role
+    messageType: $messageType
+    isRead: $isRead
+    relatedProject: $relatedProject
+    isFlagged: $isFlagged
+    created_at_Gte: $createdAfter
+    created_at_Lte: $createdBefore
+  ) {
+    ...ConversationHistoryFields
+  }
+}
+
+# Mutation to add a new conversation message
+mutation AddConversationMessage($input: ConversationHistoryInput!) {
+  addConversationMessage(input: $input) {
+    success
+    message
+    conversationMessage {
+      ...ConversationHistoryFields
+    }
+    errors
+  }
+}
+
+# Mutation to mark a message as read
+mutation MarkAsRead($messageId: ID!) {
+  markAsRead(messageId: $messageId) {
+    success
+    message
+    conversationMessage {
+      id
+      isRead
+    }
+    errors
+  }
+}
+
+# Mutation to rate a conversation message
+mutation RateConversationMessage($messageId: ID!, $rating: Int!, $feedback: String) {
+  rateConversationMessage(
+    messageId: $messageId
+    rating: $rating
+    feedback: $feedback
+  ) {
+    success
+    message
+    conversationMessage {
+      ...ConversationHistoryFields
+    }
+    errors
+  }
+}
+
+# Subscription to new conversation messages in a session
+subscription OnNewMessage($sessionId: String!) {
+  sessionConversation(sessionId: $sessionId) {
+    ...ConversationHistoryFields
+  }
+}

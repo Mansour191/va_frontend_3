@@ -7,8 +7,11 @@ query GetCustomerSegments {
     name
     description
     criteria
+    criteriaRules
     isActive
     priority
+    status
+    lastSyncDate
     createdAt
     updatedAt
   }
@@ -21,8 +24,11 @@ query GetCustomerSegment($id: ID!) {
     name
     description
     criteria
+    criteriaRules
     isActive
     priority
+    status
+    lastSyncDate
     createdAt
     updatedAt
   }
@@ -38,8 +44,11 @@ mutation CreateCustomerSegment($input: CustomerSegmentInput!) {
       name
       description
       criteria
+      criteriaRules
       isActive
       priority
+      status
+      lastSyncDate
       createdAt
       updatedAt
     }
@@ -57,11 +66,119 @@ mutation UpdateCustomerSegment($id: ID!, $input: CustomerSegmentInput!) {
       name
       description
       criteria
+      criteriaRules
       isActive
       priority
+      status
+      lastSyncDate
       createdAt
       updatedAt
     }
+    errors
+  }
+}
+
+# Query customer segment user relationships
+query GetCustomerSegmentUsers($userId: ID, $segmentId: ID) {
+  customerSegmentUsers(userId: $userId, segmentId: $segmentId) {
+    id
+    customersegment {
+      id
+      name
+      description
+      isActive
+      priority
+      status
+    }
+    user {
+      id
+      username
+      email
+      firstName
+      lastName
+    }
+    joinedAt
+    addedByAi
+    engagementScore
+  }
+}
+
+# Query a single customer segment user relationship
+query GetCustomerSegmentUser($id: ID!) {
+  customerSegmentUser(id: $id) {
+    id
+    customersegment {
+      id
+      name
+      description
+      isActive
+      priority
+      status
+    }
+    user {
+      id
+      username
+      email
+      firstName
+      lastName
+    }
+    joinedAt
+    addedByAi
+    engagementScore
+  }
+}
+
+# Mutation to assign user to segment
+mutation AssignUserToSegment($input: CustomerSegmentUserInput!) {
+  assignUserToSegment(input: $input) {
+    success
+    message
+    customerSegmentUser {
+      id
+      customersegment {
+        id
+        name
+      }
+      user {
+        id
+        username
+      }
+      joinedAt
+      addedByAi
+      engagementScore
+    }
+    errors
+  }
+}
+
+# Mutation to update customer segment user relationship
+mutation UpdateCustomerSegmentUser($id: ID!, $input: CustomerSegmentUserInput!) {
+  updateCustomerSegmentUser(id: $id, input: $input) {
+    success
+    message
+    customerSegmentUser {
+      id
+      customersegment {
+        id
+        name
+      }
+      user {
+        id
+        username
+      }
+      joinedAt
+      addedByAi
+      engagementScore
+    }
+    errors
+  }
+}
+
+# Mutation to remove user from segment
+mutation RemoveUserFromSegment($id: ID!) {
+  removeUserFromSegment(id: $id) {
+    success
+    message
     errors
   }
 }
@@ -71,6 +188,17 @@ fragment CustomerSegmentInput on CustomerSegmentInput {
   name
   description
   criteria
+  criteriaRules
   isActive
   priority
+  status
+  lastSyncDate
+}
+
+# Input type for customer segment user operations
+fragment CustomerSegmentUserInput on CustomerSegmentUserInput {
+  customersegmentId
+  userId
+  addedByAi
+  engagementScore
 }

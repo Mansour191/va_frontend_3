@@ -371,13 +371,61 @@ class ChatService {
       
       return {
         success: true,
-        message: response.response || response.message || 'شكراً لتواصلك. فريق Paclos سيقوم بالرد على استفسارك في أقرب وقت ممكن.'
+        message: response.response || response.message || 'شكراً لتواصلك. فريق Paclos سيقوم بالرد على استفسارك في أقرب وقت ممكن.',
+        sentimentScore: response.confidence
       };
     } catch (error) {
       console.error('❌ ChatService.sendMessage error:', error);
       return {
         success: false,
         message: 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.',
+        error: error.message
+      };
+    }
+  }
+
+  // Static method for marking message as read
+  static async markAsRead(messageId) {
+    try {
+      const response = await fetch(`${API_BASE}/graphql/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          query: `
+            mutation MarkAsRead($messageId: ID!) {
+              markAsRead(messageId: $messageId) {
+                success
+                message
+                conversationMessage {
+                  id
+                  isRead
+                }
+              }
+            }
+          `,
+          variables: {
+            messageId: messageId
+          }
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+
+      return {
+        success: true,
+        data: result.data.markAsRead
+      };
+    } catch (error) {
+      console.error('❌ ChatService.markAsRead error:', error);
+      return {
+        success: false,
         error: error.message
       };
     }

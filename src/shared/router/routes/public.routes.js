@@ -138,6 +138,15 @@ export default [
     },
   },
   {
+    path: '/wishlist/view/:token',
+    name: 'PublicWishlist',
+    component: () => import(/* webpackChunkName: "wishlist" */ '@/views/PublicWishlist.vue'),
+    meta: {
+      title: 'قائمة الأمنيات',
+      isPublic: true,
+    },
+  },
+  {
     path: '/getlocation',
     name: 'GetLocation',
     component: () => import(/* webpackChunkName: "test" */ '@/test/GetLocation.vue'),

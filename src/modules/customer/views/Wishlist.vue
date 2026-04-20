@@ -36,6 +36,14 @@
                   </v-chip>
                 </div>
                 <v-btn
+                  variant="outlined"
+                  color="primary"
+                  prepend-icon="mdi-cog"
+                  @click="openSettingsModal"
+                >
+                  الإعدادات
+                </v-btn>
+                <v-btn
                   v-if="wishlistItems.length > 0"
                   variant="outlined"
                   color="error"
@@ -186,17 +194,25 @@
         </v-card-actions>
       </v-card>
     </v-container>
+
+    <!-- Wishlist Settings Modal -->
+    <WishlistSettingsModal
+      v-model="showSettingsModal"
+      @settings-updated="onSettingsUpdated"
+    />
   </v-main>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import WishlistService from '@/integration/services/WishlistService';
+import WishlistSettingsModal from '@/components/WishlistSettingsModal.vue';
 
 // Reactive data
 const overlayActive = ref(true);
 const loading = ref(false);
 const wishlistItems = ref([]);
+const showSettingsModal = ref(false);
 
 // Methods
 const loadWishlist = async () => {
@@ -268,6 +284,15 @@ const formatCurrency = (amount) => {
     style: 'currency',
     currency: 'DZD'
   }).format(amount);
+};
+
+const openSettingsModal = () => {
+  showSettingsModal.value = true;
+};
+
+const onSettingsUpdated = (settings) => {
+  console.log('Settings updated:', settings);
+  // You could reload wishlist or show a success message
 };
 
 onMounted(() => {

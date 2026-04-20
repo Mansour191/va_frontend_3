@@ -1,5 +1,45 @@
 import { gql } from '@apollo/client';
 
+// Dashboard Settings Mutations
+export const UPDATE_DASHBOARD_SETTINGS = gql`
+  mutation UpdateDashboardSettings($input: DashboardSettingsInput!) {
+    updateDashboardSettings(input: $input) {
+      success
+      message
+      dashboardSettings {
+        id
+        user {
+          id
+          username
+          email
+        }
+        layout
+        layoutJson
+        widgets
+        preferences
+        refreshInterval
+        showNotifications
+        primaryColor
+        defaultChartType
+        defaultDateRange
+        defaultWilaya
+        defaultCategory {
+          id
+          name
+        }
+        emailNotifications
+        pushNotifications
+        notificationFrequency
+        shareAnalytics
+        publicDashboard
+        createdAt
+        updatedAt
+      }
+      errors
+    }
+  }
+`;
+
 // Auth Mutations
 export const LOGIN_MUTATION = gql`
   mutation Login($username: String!, $password: String!) {

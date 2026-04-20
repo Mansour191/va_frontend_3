@@ -7,6 +7,41 @@ export const HELLO_QUERY = gql`
   }
 `;
 
+// Dashboard Settings Queries
+export const GET_DASHBOARD_SETTINGS = gql`
+  query GetMyDashboardSettings {
+    myDashboardSettings {
+      id
+      user {
+        id
+        username
+        email
+      }
+      layout
+      layoutJson
+      widgets
+      preferences
+      refreshInterval
+      showNotifications
+      primaryColor
+      defaultChartType
+      defaultDateRange
+      defaultWilaya
+      defaultCategory {
+        id
+        name
+      }
+      emailNotifications
+      pushNotifications
+      notificationFrequency
+      shareAnalytics
+      publicDashboard
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 // AI Service GraphQL Queries
 export const AI_HEALTH_CHECK = gql`
   query GetAIHealth($service: String) {

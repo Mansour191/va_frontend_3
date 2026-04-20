@@ -1,0 +1,59 @@
+# Pricing Engine GraphQL Queries and Mutations
+
+# Query to get pricing engine configuration
+query GetPricingEngine {
+  pricingEngine {
+    id
+    rawMaterialCost
+    laborCost
+    internationalShipping
+    currency
+    taxPercentage
+    validFrom
+    validTo
+    isActive
+    totalCost
+  }
+}
+
+# Mutation to create pricing engine
+mutation CreatePricingEngine($input: PricingEngineInput!) {
+  createPricingEngine(input: $input) {
+    success
+    message
+    pricingEngine {
+      id
+      rawMaterialCost
+      laborCost
+      internationalShipping
+      currency
+      taxPercentage
+      validFrom
+      validTo
+      isActive
+      totalCost
+    }
+    errors
+  }
+}
+
+# Mutation to update pricing engine
+mutation UpdatePricingEngine($id: ID!, $input: PricingEngineInput!) {
+  updatePricingEngine(id: $id, input: $input) {
+    success
+    message
+    pricingEngine {
+      id
+      rawMaterialCost
+      laborCost
+      internationalShipping
+      currency
+      taxPercentage
+      validFrom
+      validTo
+      isActive
+      totalCost
+    }
+    errors
+  }
+}

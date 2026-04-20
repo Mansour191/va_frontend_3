@@ -7,166 +7,207 @@
           <div class="header-content">
             <h1 class="text-h3 font-weight-bold text-primary mb-2 d-flex align-center ga-3">
               <v-icon color="primary" size="40">mdi-blog</v-icon>
-              {{ $t('blogManager') || 'إدارة المدونة' }}
+              {{ $t('blogManager') || 'Blog Manager' }}
             </h1>
             <p class="text-body-1 text-medium-emphasis mb-0">
-              {{ $t('blogManagerSubtitle') || 'إدارة مقالات ومحتوى المدونة' }}
+              {{ $t('blogManagerSubtitle') || 'Manage blog posts and categories' }}
             </p>
           </div>
           <div class="header-actions d-flex ga-3">
             <v-btn
-              @click="createPost"
+              @click="currentTab === 'posts' ? createPost() : createCategory()"
               variant="elevated"
               color="primary"
               prepend-icon="mdi-plus"
             >
-              {{ $t('createPost') || 'إنشاء مقال' }}
+              {{ currentTab === 'posts' ? ($t('createPost') || 'Create Post') : ($t('createCategory') || 'Create Category') }}
             </v-btn>
             <v-btn
               @click="refreshData"
               variant="tonal"
               color="primary"
               prepend-icon="mdi-refresh"
+              :loading="loading"
             >
-              {{ $t('refresh') || 'تحديث' }}
+              {{ $t('refresh') || 'Refresh' }}
             </v-btn>
           </div>
         </div>
       </v-card-text>
     </v-card>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center py-8">
-      <v-progress-circular indeterminate color="primary" size="48" />
-      <p class="mt-4 text-medium-emphasis">{{ $t('loadingBlogPosts') || 'جاري تحميل مقالات المدونة...' }}</p>
-    </div>
+    <!-- Tab Navigation -->
+    <v-tabs
+      v-model="currentTab"
+      color="primary"
+      class="mb-6"
+      grow
+    >
+      <v-tab value="posts">
+        <v-icon start>mdi-file-document-multiple</v-icon>
+        {{ $t('posts') || 'Posts' }}
+      </v-tab>
+      <v-tab value="categories">
+        <v-icon start>mdi-folder-multiple</v-icon>
+        {{ $t('categories') || 'Categories' }}
+      </v-tab>
+    </v-tabs>
 
-    <!-- Main Content -->
-    <div v-else>
-      <!-- Blog Stats -->
-      <v-row class="mb-6">
-        <v-col
-          v-for="stat in blogStats"
-          :key="stat.title"
-          cols="12"
-          sm="6"
-          md="3"
-        >
-          <v-card variant="elevated" class="stat-card">
-            <v-card-text class="pa-4 text-center">
-              <v-avatar
-                :color="stat.color"
-                variant="tonal"
-                size="50"
-                class="mb-3"
-              >
-                <v-icon :color="stat.color" size="28">{{ stat.icon }}</v-icon>
-              </v-avatar>
-              <h3 class="text-h4 font-weight-bold text-white mb-1">{{ stat.value }}</h3>
-              <p class="text-caption text-medium-emphasis mb-0">{{ stat.title }}</p>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
+    <!-- Tab Content -->
+    <v-window v-model="currentTab">
+      <!-- Posts Tab -->
+      <v-window-item value="posts">
+        <div v-if="loading && blogPosts.length === 0" class="text-center py-8">
+          <v-progress-circular indeterminate color="primary" size="48" />
+          <p class="mt-4 text-medium-emphasis">{{ $t('loadingBlogPosts') || 'Loading blog posts...' }}</p>
+        </div>
 
-      <!-- Blog Posts Table -->
-      <v-card variant="elevated" class="blog-card">
-        <v-card-text class="pa-4">
-          <div class="d-flex align-center justify-space-between mb-4">
-            <h3 class="text-h6 font-weight-medium text-white d-flex align-center ga-2">
-              <v-icon color="primary" size="20">mdi-file-document-multiple</v-icon>
-              {{ $t('blogPosts') || 'مقالات المدونة' }}
-            </h3>
-            <div class="d-flex ga-2">
-              <v-text-field
-                v-model="searchQuery"
-                :label="$t('searchPosts') || 'البحث في المقالات'"
-                prepend-inner-icon="mdi-magnify"
-                variant="outlined"
-                density="compact"
-                hide-details
-                style="max-width: 300px;"
-              />
-              <v-select
-                v-model="statusFilter"
-                :label="$t('filterByStatus') || 'فلترة حسب الحالة'"
-                :items="statusOptions"
-                variant="outlined"
-                density="compact"
-                hide-details
-                style="max-width: 200px;"
-              />
-            </div>
-          </div>
+        <div v-else>
+          <!-- Blog Stats -->
+          <v-row class="mb-6">
+            <v-col
+              v-for="stat in blogStats"
+              :key="stat.title"
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <v-card variant="elevated" class="stat-card">
+                <v-card-text class="pa-4 text-center">
+                  <v-avatar
+                    :color="stat.color"
+                    variant="tonal"
+                    size="50"
+                    class="mb-3"
+                  >
+                    <v-icon :color="stat.color" size="28">{{ stat.icon }}</v-icon>
+                  </v-avatar>
+                  <h3 class="text-h4 font-weight-bold text-white mb-1">{{ stat.value }}</h3>
+                  <p class="text-caption text-medium-emphasis mb-0">{{ stat.title }}</p>
+                </v-card-text>
+              </v-card>
+            </v-col>
+          </v-row>
 
-          <v-data-table
-            :headers="tableHeaders"
-            :items="filteredPosts"
-            :loading="loading"
-            :search="searchQuery"
-            items-per-page="10"
-            class="blog-table"
-          >
-            <template #[`item.title`="{ item }">
-              <div class="d-flex align-center ga-2">
-                <v-avatar :color="item.statusColor" variant="tonal" size="32">
-                  <v-icon size="16">{{ item.statusIcon }}</v-icon>
-                </v-avatar>
-                <div>
-                  <div class="text-body-2 font-weight-medium text-white">{{ item.title }}</div>
-                  <div class="text-caption text-medium-emphasis">{{ item.excerpt }}</div>
+          <!-- Blog Posts Table -->
+          <v-card variant="elevated" class="blog-card">
+            <v-card-text class="pa-4">
+              <div class="d-flex align-center justify-space-between mb-4">
+                <h3 class="text-h6 font-weight-medium text-white d-flex align-center ga-2">
+                  <v-icon color="primary" size="20">mdi-file-document-multiple</v-icon>
+                  {{ $t('blogPosts') || 'Blog Posts' }}
+                </h3>
+                <div class="d-flex ga-2">
+                  <v-text-field
+                    v-model="searchQuery"
+                    :label="$t('searchPosts') || 'Search posts'"
+                    prepend-inner-icon="mdi-magnify"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    style="max-width: 300px;"
+                  />
+                  <v-select
+                    v-model="statusFilter"
+                    :label="$t('filterByStatus') || 'Filter by status'"
+                    :items="statusOptions"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    style="max-width: 200px;"
+                  />
                 </div>
               </div>
-            </template>
 
-            <template #[`item.author`="{ item }">
-              <div class="d-flex align-center ga-2">
-                <v-avatar :color="item.authorColor" variant="tonal" size="24">
-                  <v-icon size="12">mdi-account</v-icon>
-                </v-avatar>
-                <span class="text-body-2">{{ item.author }}</span>
-              </div>
-            </template>
+              <v-data-table
+                :headers="tableHeaders"
+                :items="filteredPosts"
+                :loading="loading"
+                :search="searchQuery"
+                items-per-page="10"
+                class="blog-table"
+              >
+                <template #[`item.title`]="{ item }">
+                  <div class="d-flex align-center ga-2">
+                    <v-avatar :color="item.statusColor" variant="tonal" size="32">
+                      <v-icon size="16">{{ item.statusIcon }}</v-icon>
+                    </v-avatar>
+                    <div>
+                      <div class="text-body-2 font-weight-medium text-white">{{ item.title }}</div>
+                      <div class="text-caption text-medium-emphasis">{{ item.excerpt }}</div>
+                    </div>
+                  </div>
+                </template>
 
-            <template #[`item.status`="{ item }">
-              <v-chip :color="item.statusColor" variant="tonal" size="small">
-                {{ item.status }}
-              </v-chip>
-            </template>
+                <template #[`item.author`]="{ item }">
+                  <div class="d-flex align-center ga-2">
+                    <v-avatar :color="item.authorColor" variant="tonal" size="24">
+                      <v-icon size="12">mdi-account</v-icon>
+                    </v-avatar>
+                    <span class="text-body-2">{{ item.author }}</span>
+                  </div>
+                </template>
 
-            <template #[`item.actions`="{ item }">
-              <div class="d-flex ga-1">
-                <v-btn
-                  @click="editPost(item)"
-                  variant="tonal"
-                  color="primary"
-                  size="small"
-                  prepend-icon="mdi-pencil"
-                >
-                  {{ $t('edit') || 'تعديل' }}
-                </v-btn>
-                <v-btn
-                  @click="deletePost(item)"
-                  variant="tonal"
-                  color="error"
-                  size="small"
-                  prepend-icon="mdi-delete"
-                >
-                  {{ $t('delete') || 'حذف' }}
-                </v-btn>
-              </div>
-            </template>
-          </v-data-table>
-        </v-card-text>
-      </v-card>
-    </div>
+                <template #[`item.status`]="{ item }">
+                  <v-chip :color="item.statusColor" variant="tonal" size="small">
+                    {{ item.status }}
+                  </v-chip>
+                </template>
+
+                <template #[`item.view_count`]="{ item }">
+                  <div class="d-flex align-center ga-2">
+                    <v-icon color="primary" size="16">mdi-eye</v-icon>
+                    <span class="text-body-2">{{ item.view_count || item.views || 0 }}</span>
+                  </div>
+                </template>
+
+                <template #[`item.read_time_minutes`]="{ item }">
+                  <div class="d-flex align-center ga-2">
+                    <v-icon color="info" size="16">mdi-clock-outline</v-icon>
+                    <span class="text-body-2">{{ item.read_time_minutes || 1 }} {{ $t('minutes') || 'min' }}</span>
+                  </div>
+                </template>
+
+                <template #[`item.actions`]="{ item }">
+                  <div class="d-flex ga-1">
+                    <v-btn
+                      @click="editPost(item)"
+                      variant="tonal"
+                      color="primary"
+                      size="small"
+                      prepend-icon="mdi-pencil"
+                    >
+                      {{ $t('edit') || 'Edit' }}
+                    </v-btn>
+                    <v-btn
+                      @click="deletePost(item)"
+                      variant="tonal"
+                      color="error"
+                      size="small"
+                      prepend-icon="mdi-delete"
+                    >
+                      {{ $t('delete') || 'Delete' }}
+                    </v-btn>
+                  </div>
+                </template>
+              </v-data-table>
+            </v-card-text>
+          </v-card>
+        </div>
+      </v-window-item>
+
+      <!-- Categories Tab -->
+      <v-window-item value="categories">
+        <BlogCategoryManager ref="categoryManager" />
+      </v-window-item>
+    </v-window>
 
     <!-- Create/Edit Post Dialog -->
     <v-dialog v-model="postDialog" max-width="800px">
       <v-card>
         <v-card-title class="pa-4">
           <h3 class="text-h6 font-weight-medium">
-            {{ editingPost ? ($t('editPost') || 'تعديل مقال') : ($t('createPost') || 'إنشاء مقال') }}
+            {{ editingPost ? ($t('editPost') || 'Edit Post') : ($t('createPost') || 'Create Post') }}
           </h3>
         </v-card-title>
         <v-card-text class="pa-4">
@@ -183,9 +224,33 @@
               <v-col cols="12">
                 <v-textarea
                   v-model="currentPost.excerpt"
-                  :label="$t('postExcerpt') || 'مقتطف المقال'"
+                  :label="$t('postExcerpt') || 'Post Excerpt/Summary'"
                   variant="outlined"
                   rows="3"
+                  :hint="$t('excerptHint') || 'Brief summary of the blog post'"
+                  persistent-hint
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="currentPost.featured_image_url"
+                  :label="$t('featuredImageUrl') || 'Featured Image URL'"
+                  variant="outlined"
+                  :hint="$t('featuredImageHint') || 'URL to the featured image'"
+                  persistent-hint
+                  prepend-inner-icon="mdi-image"
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="currentPost.read_time_minutes"
+                  :label="$t('readTimeMinutes') || 'Read Time (minutes)'"
+                  variant="outlined"
+                  type="number"
+                  min="1"
+                  :hint="$t('readTimeHint') || 'Estimated reading time in minutes'"
+                  persistent-hint
+                  prepend-inner-icon="mdi-clock-outline"
                 />
               </v-col>
               <v-col cols="12" md="6">
@@ -199,11 +264,27 @@
               </v-col>
               <v-col cols="12" md="6">
                 <v-select
-                  v-model="currentPost.status"
-                  :label="$t('status') || 'الحالة'"
-                  :items="statusOptions"
+                  v-model="currentPost.is_published"
+                  :label="$t('status') || 'Status'"
+                  :items="publishStatusOptions"
                   variant="outlined"
                   required
+                  item-title="title"
+                  item-value="value"
+                  :hint="$t('statusHint') || 'Publishing status of the post'"
+                  persistent-hint
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="currentPost.scheduled_at"
+                  :label="$t('scheduledAt') || 'Scheduled At'"
+                  variant="outlined"
+                  type="datetime-local"
+                  :hint="$t('scheduleHint') || 'When this post is scheduled to be published'"
+                  persistent-hint
+                  prepend-inner-icon="mdi-calendar-clock"
+                  :disabled="currentPost.is_published"
                 />
               </v-col>
               <v-col cols="12">
@@ -233,10 +314,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
-import BlogService from '@/services/BlogService';
+import BlogService from '@/shared/services/business/BlogService';
+import BlogCategoryManager from './components/BlogCategoryManager.vue';
 
 const { t } = useI18n();
 const store = useStore();
@@ -248,9 +330,11 @@ const editingPost = ref(false);
 const validForm = ref(false);
 const searchQuery = ref('');
 const statusFilter = ref('all');
+const currentTab = ref('posts');
 
 // Form refs
 const postForm = ref(null);
+const categoryManager = ref(null);
 
 // Data
 const blogStats = ref([
@@ -341,7 +425,10 @@ const currentPost = ref({
   excerpt: '',
   content: '',
   category: '',
-  status: 'مسودة'
+  is_published: false,
+  featured_image_url: '',
+  read_time_minutes: 1,
+  scheduled_at: null
 });
 
 const categories = ref([
@@ -354,19 +441,25 @@ const categories = ref([
 ]);
 
 const statusOptions = ref([
-  { title: 'الكل', value: 'all' },
-  { title: 'منشور', value: 'منشور' },
-  { title: 'مسودة', value: 'مسودة' },
-  { title: 'مجدول', value: 'مجدول' }
+  { title: 'All', value: 'all' },
+  { title: 'Published', value: true },
+  { title: 'Draft', value: false },
+  { title: 'Scheduled', value: 'scheduled' }
+]);
+
+const publishStatusOptions = ref([
+  { title: 'Draft', value: false },
+  { title: 'Published', value: true }
 ]);
 
 const tableHeaders = ref([
-  { title: t('title') || 'العنوان', key: 'title', sortable: true },
-  { title: t('author') || 'المؤلف', key: 'author', sortable: true },
-  { title: t('category') || 'الفئة', key: 'category', sortable: true },
-  { title: t('status') || 'الحالة', key: 'status', sortable: true },
-  { title: t('views') || 'المشاهدات', key: 'views', sortable: true },
-  { title: t('actions') || 'الإجراءات', key: 'actions', sortable: false, align: 'center' }
+  { title: t('title') || 'Title', key: 'title', sortable: true },
+  { title: t('author') || 'Author', key: 'author', sortable: true },
+  { title: t('category') || 'Category', key: 'category', sortable: true },
+  { title: t('status') || 'Status', key: 'status', sortable: true },
+  { title: t('views') || 'Views', key: 'view_count', sortable: true },
+  { title: t('readTime') || 'Read Time', key: 'read_time_minutes', sortable: true },
+  { title: t('actions') || 'Actions', key: 'actions', sortable: false, align: 'center' }
 ]);
 
 // Computed
@@ -413,9 +506,23 @@ const createPost = () => {
     excerpt: '',
     content: '',
     category: '',
-    status: 'مسودة'
+    is_published: false,
+    featured_image_url: '',
+    read_time_minutes: 1,
+    scheduled_at: null
   };
   postDialog.value = true;
+};
+
+const createCategory = () => {
+  // Switch to categories tab and trigger create
+  currentTab.value = 'categories';
+  // Use $nextTick to ensure the tab switch is complete before accessing the component
+  nextTick(() => {
+    if (categoryManager.value) {
+      categoryManager.value.createCategory();
+    }
+  });
 };
 
 const editPost = (post) => {

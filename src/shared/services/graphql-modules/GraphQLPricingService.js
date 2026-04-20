@@ -17,6 +17,11 @@ import {
   PUSH_TO_ERPNEXT
 } from '@/shared/services/graphql/enhancedMutations';
 
+// Import Pricing Engine queries
+import GET_PRICING_ENGINE from '@/integration/graphql/pricingEngine.graphql';
+import CREATE_PRICING_ENGINE from '@/integration/graphql/pricingEngine.graphql';
+import UPDATE_PRICING_ENGINE from '@/integration/graphql/pricingEngine.graphql';
+
 class GraphQLPricingService {
   constructor() {
     this.cache = new Map();
@@ -381,6 +386,44 @@ class GraphQLPricingService {
     return validation;
   }
 
+  // Pricing Engine CRUD Operations
+  async getPricingEngine() {
+    try {
+      const result = await this.queryGraphQL('GetPricingEngine');
+      return result;
+    } catch (error) {
+      console.error('Error fetching pricing engine:', error);
+      throw error;
+    }
+  }
+
+  async createPricingEngine(pricingEngineData) {
+    try {
+      const result = await this.mutateGraphQL('CreatePricingEngine', {
+        input: pricingEngineData
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('Error creating pricing engine:', error);
+      throw error;
+    }
+  }
+
+  async updatePricingEngine(id, pricingEngineData) {
+    try {
+      const result = await this.mutateGraphQL('UpdatePricingEngine', {
+        id,
+        input: pricingEngineData
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('Error updating pricing engine:', error);
+      throw error;
+    }
+  }
+
   // Pricing Simulation
   async simulatePricingScenarios(baseData, scenarios) {
     try {
@@ -444,6 +487,10 @@ export function useGraphQLPricing() {
     getPriceAnalytics: (filters) => service.getPriceAnalytics(filters),
     simulatePricingScenarios: (baseData, scenarios) => service.simulatePricingScenarios(baseData, scenarios),
     validatePricingData: (pricingData) => service.validatePricingData(pricingData),
-    clearCache: (pattern) => service.clearCache(pattern)
+    clearCache: (pattern) => service.clearCache(pattern),
+    // Pricing Engine methods
+    getPricingEngine: () => service.getPricingEngine(),
+    createPricingEngine: (pricingEngineData) => service.createPricingEngine(pricingEngineData),
+    updatePricingEngine: (id, pricingEngineData) => service.updatePricingEngine(id, pricingEngineData)
   };
 }
