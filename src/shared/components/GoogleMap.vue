@@ -907,7 +907,7 @@ const initMap = () => {
 
 // --- Data Fetching & Actions ---
 const { 
-  data: locationData, 
+  data: locationDataFromAPI, 
   loading: locationLoading, 
   error: locationError 
 } = useLocationInfo();
@@ -919,14 +919,14 @@ const {
 } = useNearbyBranches(OFFICE_LOCATION.lat, OFFICE_LOCATION.lng, 50);
 
 const { 
-  execute: sendQuickMessage, 
-  loading: sending, 
+  execute: sendQuickMessageAPI, 
+  loading: sendingAPI, 
   error: messageError 
 } = useSendQuickMessage();
 
 // Computed properties
-const loading = computed(() => locationLoading.value || branchesLoading.value);
-const nearbyBranches = computed(() => branchesData?.nearbyBranches || []);
+const loadingAPI = computed(() => locationLoading.value || branchesLoading.value);
+const nearbyBranchesFromAPI = computed(() => branchesData?.nearbyBranches || []);
 
 const loadLocationData = async () => {
   // GraphQL composables handle automatic data fetching

@@ -5,7 +5,7 @@
 
 class CartService {
   constructor() {
-    this.apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+    this.graphqlEndpoint = '/graphql/';
     this.cache = new Map();
     this.cacheTTL = 5 * 60 * 1000; // 5 دقائق
   }
@@ -22,21 +22,55 @@ class CartService {
     }
 
     try {
-      const url = `${this.apiBaseUrl}/cart/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const query = `
+        query {
+          myCart {
+            id
+            quantity
+            options
+            createdAt
+            updatedAt
+            product {
+              ...ProductEssential
+              images {
+                id
+                imageUrl
+                isMain
+              }
+            }
+            material {
+              id
+              nameAr
+              nameEn
+              pricePerM2
+            }
+            productDetails
+            subtotal
+            totalWithDiscount
+            finalTotal
+            isAvailable
+            maxQuantity
+            currentUnitPrice
+            currentMaterialPrice
+            priceChanged
+            weight
+            dimensions
+          }
         }
-      });
+        fragment ProductEssential on Product {
+          id
+          nameAr
+          nameEn
+          slug
+          basePrice
+          onSale
+          discountPercent
+          isActive
+        }
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const items = this._transformCartItems(data.results || data);
+      const response = await this._makeGraphQLRequest(query);
+      const items = this._transformCartItems(response.myCart || []);
       
       this._setCache(cacheKey, items);
       return items;
@@ -54,31 +88,72 @@ class CartService {
    */
   async addToCart(productId, options = {}) {
     try {
-      const url = `${this.apiBaseUrl}/cart/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          product_id: productId,
+      const mutation = `
+        mutation AddToCart($input: CartItemInput!) {
+          addToCart(input: $input) {
+            success
+            message
+            cartItem {
+              id
+              quantity
+              options
+              createdAt
+              updatedAt
+              product {
+                id
+                nameAr
+                nameEn
+                basePrice
+                stock
+                isActive
+                images {
+                  id
+                  imageUrl
+                  isMain
+                }
+              }
+              material {
+                id
+                nameAr
+                nameEn
+                pricePerM2
+              }
+              productDetails
+              subtotal
+              totalWithDiscount
+              finalTotal
+              isAvailable
+              maxQuantity
+              currentUnitPrice
+              currentMaterialPrice
+              priceChanged
+              weight
+              dimensions
+            }
+            cartSummary
+          }
+        }
+      `;
+
+      const variables = {
+        input: {
+          productId: productId,
+          materialId: options.materialId || null,
           quantity: options.quantity || 1,
-          variant: options.variant || {}
-        })
-      });
+          options: JSON.stringify(options.variant || {})
+        }
+      };
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.addToCart.success) {
+        // Clear cache to force refresh
+        this.cache.delete('cart_items');
+        
+        return this._transformCartItem(response.addToCart.cartItem);
+      } else {
+        throw new Error(response.addToCart.message || 'Failed to add to cart');
       }
-
-      const data = await response.json();
-      const item = this._transformCartItem(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('cart_items');
-      
-      return item;
     } catch (error) {
       console.error('❌ Error adding to cart:', error);
       throw error;
@@ -93,27 +168,41 @@ class CartService {
    */
   async updateCartItem(itemId, updates) {
     try {
-      const url = `${this.apiBaseUrl}/cart/${itemId}/`;
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updates)
-      });
+      const mutation = `
+        mutation UpdateCartQuantity($input: UpdateCartInput!) {
+          updateCartQuantity(input: $input) {
+            success
+            message
+            cartItem {
+              id
+              quantity
+              subtotal
+              totalWithDiscount
+              finalTotal
+              isAvailable
+            }
+            cartSummary
+          }
+        }
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = {
+        input: {
+          cartItemId: itemId,
+          quantity: updates.quantity
+        }
+      };
+
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.updateCartQuantity.success) {
+        // Clear cache to force refresh
+        this.cache.delete('cart_items');
+        
+        return this._transformCartItem(response.updateCartQuantity.cartItem);
+      } else {
+        throw new Error(response.updateCartQuantity.message || 'Failed to update cart item');
       }
-
-      const data = await response.json();
-      const item = this._transformCartItem(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('cart_items');
-      
-      return item;
     } catch (error) {
       console.error('❌ Error updating cart item:', error);
       throw error;
@@ -127,22 +216,27 @@ class CartService {
    */
   async removeFromCart(itemId) {
     try {
-      const url = `${this.apiBaseUrl}/cart/${itemId}/`;
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`
+      const mutation = `
+        mutation RemoveFromCart($cartItemId: Int!) {
+          removeFromCart(cartItemId: $cartItemId) {
+            success
+            message
+            cartSummary
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = { cartItemId: itemId };
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.removeFromCart.success) {
+        // Clear cache to force refresh
+        this.cache.delete('cart_items');
+        
+        return true;
+      } else {
+        throw new Error(response.removeFromCart.message || 'Failed to remove from cart');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('cart_items');
-      
-      return true;
     } catch (error) {
       console.error('❌ Error removing from cart:', error);
       throw error;
@@ -155,23 +249,25 @@ class CartService {
    */
   async clearCart() {
     try {
-      const url = `${this.apiBaseUrl}/cart/clear/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const mutation = `
+        mutation ClearCart {
+          clearCart {
+            success
+            message
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const response = await this._makeGraphQLRequest(mutation);
+      
+      if (response.clearCart.success) {
+        // Clear cache to force refresh
+        this.cache.delete('cart_items');
+        
+        return true;
+      } else {
+        throw new Error(response.clearCart.message || 'Failed to clear cart');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('cart_items');
-      
-      return true;
     } catch (error) {
       console.error('❌ Error clearing cart:', error);
       throw error;
@@ -185,31 +281,42 @@ class CartService {
    */
   async applyPromoCode(promoCode) {
     try {
-      const url = `${this.apiBaseUrl}/cart/apply-promo/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ promo_code: promoCode })
-      });
+      const mutation = `
+        mutation ApplyCoupon($input: ApplyCouponInput!) {
+          applyCoupon(input: $input) {
+            success
+            message
+            cartSummary
+          }
+        }
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // Clear cache to force refresh
-      this.cache.delete('cart_items');
-      
-      return {
-        success: true,
-        discount: data.discount,
-        updatedItems: this._transformCartItems(data.updated_items),
-        message: data.message
+      const variables = {
+        input: {
+          couponCode: promoCode
+        }
       };
+
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.applyCoupon.success) {
+        // Clear cache to force refresh
+        this.cache.delete('cart_items');
+        
+        const summary = JSON.parse(response.applyCoupon.cartSummary || '{}');
+        
+        return {
+          success: true,
+          discount: summary.discountTotal || 0,
+          updatedItems: [], // Will be populated by cart refresh
+          message: response.applyCoupon.message
+        };
+      } else {
+        return {
+          success: false,
+          message: response.applyCoupon.message || 'كود الخصم غير صالح'
+        };
+      }
     } catch (error) {
       console.error('❌ Error applying promo code:', error);
       return {
@@ -225,27 +332,28 @@ class CartService {
    */
   async getCartSummary() {
     try {
-      const url = `${this.apiBaseUrl}/cart/summary/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const query = `
+        query {
+          cartSummary {
+            itemCount
+            subtotal
+            shippingCost
+            discountAmount
+            total
+            promoCode
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      return {
-        itemCount: data.item_count,
-        subtotal: data.subtotal,
-        shippingCost: data.shipping_cost,
-        discountAmount: data.discount_amount,
-        total: data.total,
-        promoCode: data.promo_code
+      const response = await this._makeGraphQLRequest(query);
+      
+      return response.cartSummary || {
+        itemCount: 0,
+        subtotal: 0,
+        shippingCost: 0,
+        discountAmount: 0,
+        total: 0,
+        promoCode: null
       };
     } catch (error) {
       console.error('❌ Error fetching cart summary:', error);
@@ -342,6 +450,43 @@ class CartService {
         addedAt: '2024-01-25T09:45:00Z'
       }
     ];
+  }
+
+  /**
+   * تنفيذ طلب GraphQL
+   * @param {string} query - استعلام GraphQL
+   * @param {Object} variables - متغيرات الاستعلام
+   * @returns {Promise<Object>} - نتيجة الاستعلام
+   */
+  async _makeGraphQLRequest(query, variables = {}) {
+    try {
+      const response = await fetch(this.graphqlEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this._getAuthToken()}`
+        },
+        body: JSON.stringify({
+          query,
+          variables
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ GraphQL request error:', error);
+      throw error;
+    }
   }
 
   /**

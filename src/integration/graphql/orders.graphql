@@ -1,6 +1,57 @@
 import { gql } from '@apollo/client/core';
+import {
+  ORDER_BASIC_FRAGMENT,
+  ORDER_DETAILS_FRAGMENT,
+  ORDER_ITEM_BASIC_FRAGMENT,
+  USER_BASIC_FRAGMENT,
+  PRODUCT_ESSENTIAL_FRAGMENT,
+  PRODUCT_IMAGES_FRAGMENT,
+  MATERIAL_BASIC_FRAGMENT,
+  PAGE_INFO_FRAGMENT,
+  TIMESTAMPS_FRAGMENT
+} from './fragments.graphql';
 
-// Create order mutation
+// Get all orders query
+export const GET_ORDERS_QUERY = gql`
+  query GetOrders($first: Int = 50, $after: String, $status: String) {
+    orders(first: $first, after: $after, status: $status) {
+      edges {
+        node {
+          id
+          orderNumber
+          customerName
+          phone
+          email
+          totalAmount
+          subtotal
+          shippingAmount
+          taxAmount
+          status
+          paymentMethod
+          paymentStatus
+          createdAt
+          updatedAt
+          shippingAddress {
+            street
+            city
+            wilaya
+            country
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+`;
+
+// Create order mutation (using fragments)
 export const CREATE_ORDER_MUTATION = gql`
   mutation CreateOrder($input: OrderInput!, $items: [OrderItemInput!]!) {
     createOrder(input: $input, items: $items) {
@@ -10,11 +61,7 @@ export const CREATE_ORDER_MUTATION = gql`
         id
         orderNumber
         user {
-          id
-          username
-          email
-          firstName
-          lastName
+          ...UserBasic
         }
         customerName
         phone
@@ -42,25 +89,13 @@ export const CREATE_ORDER_MUTATION = gql`
         items {
           id
           product {
-            id
-            nameAr
-            nameEn
-            slug
-            basePrice
+            ...ProductEssential
             images {
-              id
-              imageUrl
-              altText
-              isMain
+              ...ProductImages
             }
           }
           material {
-            id
-            nameAr
-            nameEn
-            pricePerM2
-            isPremium
-            image
+            ...MaterialBasic
           }
           quantity
           price
@@ -79,146 +114,40 @@ export const CREATE_ORDER_MUTATION = gql`
       }
     }
   }
+  ${USER_BASIC_FRAGMENT}
+  ${PRODUCT_ESSENTIAL_FRAGMENT}
+  ${PRODUCT_IMAGES_FRAGMENT}
+  ${MATERIAL_BASIC_FRAGMENT}
 `;
 
-// Get user orders
+// Get user orders (using fragments)
 export const USER_ORDERS_QUERY = gql`
   query GetUserOrders($filter: OrderFilterInput, $first: Int, $after: String, $orderBy: String) {
     userOrders(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
       pageInfo {
-        hasNextPage
-        hasPreviousPage
-        startCursor
-        endCursor
+        ...PageInfo
       }
       edges {
         node {
-          id
-          orderNumber
-          customerName
-          phone
-          email
-          shippingAddress
-          wilaya {
-            id
-            wilayaId
-            nameAr
-            nameFr
-          }
-          subtotal
-          shippingCost
-          tax
-          discountAmount
-          totalAmount
-          status
-          paymentMethod
-          paymentStatus
-          notes
-          createdAt
-          updatedAt
-          items {
-            id
-            product {
-              id
-              nameAr
-              nameEn
-              slug
-              images {
-                id
-                imageUrl
-                altText
-                isMain
-              }
-            }
-            variant {
-              id
-              name
-              sku
-              price
-              stock
-              attributes
-            }
-            material {
-              id
-              nameAr
-              nameEn
-              pricePerM2
-              isPremium
-              image
-            }
-            quantity
-            price
-            totalPrice
-          }
-          timeline {
-            id
-            status
-            note
-            createdAt
-          }
+          ...OrderDetails
         }
         cursor
       }
     }
   }
+  ${ORDER_DETAILS_FRAGMENT}
+  ${PAGE_INFO_FRAGMENT}
 `;
 
-// Get my orders (simplified for OrderHistory)
+// Get my orders (simplified for OrderHistory - using fragments)
 export const MY_ORDERS_QUERY = gql`
   query GetMyOrders($page: Int, $limit: Int) {
     myOrders(page: $page, limit: $limit) {
-      id
-      orderNumber
-      customerName
-      phone
-      email
-      shippingAddress
-      wilaya {
-        id
-        wilayaId
-        nameAr
-        nameFr
-      }
-      subtotal
-      shippingCost
-      tax
-      discountAmount
-      totalAmount
-      status
-      paymentMethod
-      paymentStatus
-      notes
-      createdAt
-      updatedAt
-      items {
-        id
-        product {
-          id
-          nameAr
-          nameEn
-          slug
-          images {
-            id
-            imageUrl
-            altText
-            isMain
-          }
-        }
-        material {
-          id
-          nameAr
-          nameEn
-          pricePerM2
-          isPremium
-          image
-        }
-        quantity
-        price
-        totalPrice
-      }
+      ...OrderDetails
     }
     myOrdersCount
   }
+  ${ORDER_DETAILS_FRAGMENT}
 `;
 
 // Get shipping zones (alias for Checkout component)
@@ -373,95 +302,23 @@ export const ORDER_QUERY = gql`
   }
 `;
 
-// Get all orders (admin)
+// Get all orders (admin - using fragments)
 export const ALL_ORDERS_QUERY = gql`
   query GetAllOrders($filter: OrderFilterInput, $first: Int, $after: String, $orderBy: String) {
     allOrders(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
       pageInfo {
-        hasNextPage
-        hasPreviousPage
-        startCursor
-        endCursor
+        ...PageInfo
       }
       edges {
         node {
-          id
-          orderNumber
-          user {
-            id
-            username
-            email
-            firstName
-            lastName
-          }
-          customerName
-          phone
-          email
-          shippingAddress
-          wilaya {
-            id
-            wilayaId
-            nameAr
-            nameFr
-          }
-          subtotal
-          shippingCost
-          tax
-          discountAmount
-          totalAmount
-          status
-          paymentMethod
-          paymentStatus
-          notes
-          syncStatus
-          erpnextSalesOrderId
-          createdAt
-          updatedAt
-          items {
-            id
-            product {
-              id
-              nameAr
-              nameEn
-              slug
-              images {
-                id
-                imageUrl
-                altText
-                isMain
-              }
-            }
-            variant {
-              id
-              name
-              sku
-              price
-              stock
-              attributes
-            }
-            material {
-              id
-              nameAr
-              nameEn
-              pricePerM2
-              isPremium
-              image
-            }
-            quantity
-            price
-            totalPrice
-          }
-          timeline {
-            id
-            status
-            note
-            createdAt
-          }
+          ...OrderDetails
         }
         cursor
       }
     }
   }
+  ${ORDER_DETAILS_FRAGMENT}
+  ${PAGE_INFO_FRAGMENT}
 `;
 
 // Update order status

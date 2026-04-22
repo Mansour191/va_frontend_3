@@ -337,21 +337,30 @@
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
+import { useQuery, useMutation } from '@apollo/client';
 import NavigationService from '@/services/NavigationService';
 import CartService from '@/services/CartService';
 import WishlistService from '@/services/WishlistService';
+import { useErrorBoundary } from '@/shared/composables/useErrorBoundary';
+
+// GraphQL queries and mutations
+import {
+  GET_SITE_STATISTICS,
+  GET_PRODUCTS_COUNT,
+  GET_CATEGORIES_COUNT,
+  GET_PAGES_COUNT,
+  GET_USERS_COUNT,
+  REFRESH_SITE_STATISTICS,
+  SITE_STATISTICS_UPDATED
+} from '@/integration/graphql/shop';
 
 const { t } = useI18n();
 const store = useStore();
+const errorBoundary = useErrorBoundary();
 
 // State
 const loading = ref(false);
-const stats = ref({
-  totalProducts: 0,
-  totalCategories: 0,
-  totalPages: 0,
-  totalUsers: 0
-});
+const refreshing = ref(false);
 
 // Computed
 const cartItemCount = computed(() => {
@@ -362,94 +371,176 @@ const wishlistItemCount = computed(() => {
   return store.getters['wishlist/items'].length || 0;
 });
 
+// GraphQL Queries
+const { 
+  result: siteStatsResult,
+  loading: siteStatsLoading,
+  error: siteStatsError,
+  refetch: refetchSiteStats
+} = useQuery(GET_SITE_STATISTICS, {
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+const { 
+  result: productsCountResult,
+  loading: productsCountLoading,
+  refetch: refetchProductsCount
+} = useQuery(GET_PRODUCTS_COUNT, {
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+const { 
+  result: categoriesCountResult,
+  loading: categoriesCountLoading,
+  refetch: refetchCategoriesCount
+} = useQuery(GET_CATEGORIES_COUNT, {
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+const { 
+  result: pagesCountResult,
+  loading: pagesCountLoading,
+  refetch: refetchPagesCount
+} = useQuery(GET_PAGES_COUNT, {
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+const { 
+  result: usersCountResult,
+  loading: usersCountLoading,
+  refetch: refetchUsersCount
+} = useQuery(GET_USERS_COUNT, {
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+// Computed properties for reactive data
+const stats = computed(() => {
+  if (siteStatsResult.value?.data?.siteStatistics) {
+    const siteStats = siteStatsResult.value.data.siteStatistics;
+    return {
+      totalProducts: siteStats.totalProducts || 0,
+      totalCategories: siteStats.totalCategories || 0,
+      totalPages: siteStats.totalPages || 0,
+      totalUsers: siteStats.totalUsers || 0
+    };
+  }
+  
+  // Fallback to individual count queries
+  return {
+    totalProducts: productsCountResult.value?.data?.productsCount || 0,
+    totalCategories: categoriesCountResult.value?.data?.categoriesCount || 0,
+    totalPages: pagesCountResult.value?.data?.pagesCount || 0,
+    totalUsers: usersCountResult.value?.data?.usersCount || 0
+  };
+});
+
+// Combined loading state
+const loading = computed(() => {
+  return siteStatsLoading.value || 
+         productsCountLoading.value || 
+         categoriesCountLoading.value || 
+         pagesCountLoading.value || 
+         usersCountLoading.value;
+});
+
+// Error handling
+const hasErrors = computed(() => {
+  return !!(siteStatsError.value);
+});
+
 // Methods
 const fetchSiteStats = async () => {
-  try {
+  return errorBoundary.execute(async () => {
     loading.value = true;
     
-    // Try to fetch from API first
     try {
-      const response = await fetch('/api/site/statistics');
-      if (response.ok) {
-        const data = await response.json();
-        stats.value = {
-          totalProducts: data.total_products || 0,
-          totalCategories: data.total_categories || 0,
-          totalPages: data.total_pages || 0,
-          totalUsers: data.total_users || 0
-        };
+      // Try site statistics query first
+      await refetchSiteStats();
+      
+      if (siteStatsResult.value?.data?.siteStatistics) {
+        console.log('✅ Site statistics loaded successfully via GraphQL');
         return;
       }
-    } catch (apiError) {
-      console.error('API call failed:', apiError);
+      
+      // Fallback to individual count queries
+      await Promise.all([
+        refetchProductsCount(),
+        refetchCategoriesCount(),
+        refetchPagesCount(),
+        refetchUsersCount()
+      ]);
+      
+      console.log('✅ Site statistics loaded via individual count queries');
+    } catch (error) {
+      console.error('❌ Error fetching site statistics:', error);
+      
+      // Show error notification
+      store.dispatch('notifications/add', {
+        type: 'warning',
+        title: t('warning') || 'تحذير',
+        message: t('errorLoadingStats') || 'خطأ في تحميل الإحصائيات',
+        timeout: 5000
+      });
+      
+      throw error;
+    } finally {
+      loading.value = false;
     }
-    
-    // Fallback to NavigationService
-    const response = await NavigationService.getSiteStatistics();
-    
-    if (response.success) {
-      stats.value = response.data;
-    } else {
-      // Dynamic fallback - calculate from actual data
-      try {
-        const [productsRes, categoriesRes, pagesRes, usersRes] = await Promise.all([
-          fetch('/api/products/count'),
-          fetch('/api/categories/count'),
-          fetch('/api/pages/count'),
-          fetch('/api/users/count')
-        ]);
-        
-        stats.value = {
-          totalProducts: productsRes.ok ? await productsRes.json() : 0,
-          totalCategories: categoriesRes.ok ? await categoriesRes.json() : 0,
-          totalPages: pagesRes.ok ? await pagesRes.json() : 0,
-          totalUsers: usersRes.ok ? await usersRes.json() : 0
-        };
-      } catch (countError) {
-        console.error('Count API calls failed:', countError);
-        
-        // Final fallback to mock data
-        stats.value = {
-          totalProducts: 156,
-          totalCategories: 8,
-          totalPages: 24,
-          totalUsers: 1234
-        };
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching site statistics:', error);
-    
-    // Show error notification
-    store.dispatch('notifications/add', {
-      type: 'warning',
-      title: t('warning') || 'تحذير',
-      message: t('errorLoadingStats') || 'خطأ في تحميل الإحصائيات',
-      timeout: 5000
-    });
-    
-    // Fallback to mock data
-    stats.value = {
-      totalProducts: 156,
-      totalCategories: 8,
-      totalPages: 24,
-      totalUsers: 1234
-    };
-  } finally {
-    loading.value = false;
-  }
+  }, 'Site statistics fetch');
 };
 
+const { mutate: refreshSiteStatsMutation } = useMutation(REFRESH_SITE_STATISTICS);
+
 const refreshStats = async () => {
-  await fetchSiteStats();
-  
-  // Show success notification
-  store.dispatch('notifications/add', {
-    type: 'success',
-    title: t('success') || 'نجاح',
-    message: t('statsRefreshed') || 'تم تحديث الإحصائيات بنجاح',
-    timeout: 3000
-  });
+  return errorBoundary.execute(async () => {
+    refreshing.value = true;
+    
+    try {
+      // Try refresh mutation first
+      const result = await refreshSiteStatsMutation({
+        errorPolicy: 'all'
+      });
+      
+      if (result.data?.refreshSiteStatistics?.success) {
+        console.log('✅ Site statistics refreshed successfully');
+        
+        // Refetch data after refresh
+        await fetchSiteStats();
+        
+        // Show success notification
+        store.dispatch('notifications/add', {
+          type: 'success',
+          title: t('success') || 'نجاح',
+          message: t('statsRefreshed') || 'تم تحديث الإحصائيات بنجاح',
+          timeout: 3000
+        });
+      } else {
+        throw new Error(result.errors?.[0]?.message || 'Refresh failed');
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing site statistics:', error);
+      
+      // Fallback to simple refetch
+      await fetchSiteStats();
+      
+      // Show success notification anyway
+      store.dispatch('notifications/add', {
+        type: 'success',
+        title: t('success') || 'نجاح',
+        message: t('statsRefreshed') || 'تم تحديث الإحصائيات بنجاح',
+        timeout: 3000
+      });
+      
+      throw error;
+    } finally {
+      refreshing.value = false;
+    }
+  }, 'Site statistics refresh');
 };
 
 // Lifecycle

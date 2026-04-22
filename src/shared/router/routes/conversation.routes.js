@@ -1,48 +1,20 @@
-// Conversation History Routes
+// Conversation History Routes - DISABLED
+// Chat.vue and ConversationDetail.vue files do not exist
+
 
 const ConversationRoutes = [
-  {
-    path: '/history',
-    name: 'ConversationHistory',
-    component: () => import('@/views/ConversationHistory.vue'),
-    meta: {
-      requiresAuth: true,
-      title: 'Conversation History',
-      description: 'View and manage conversation history'
-    }
-  },
-  {
-    path: '/history/:id',
-    name: 'ConversationDetail',
-    component: () => import('@/views/ConversationDetail.vue'),
-    props: true,
-    meta: {
-      requiresAuth: true,
-      title: 'Conversation Details',
-      description: 'View specific conversation details'
-    }
-  },
-  {
-    path: '/chat',
-    name: 'Chat',
-    component: () => import('@/views/Chat.vue'),
-    meta: {
-      requiresAuth: true,
-      title: 'Chat',
-      description: 'Live chat interface'
-    }
-  },
-  {
-    path: '/chat/:sessionId',
-    name: 'ChatSession',
-    component: () => import('@/views/Chat.vue'),
-    props: true,
-    meta: {
-      requiresAuth: true,
-      title: 'Chat Session',
-      description: 'Continue specific chat session'
-    }
-  }
-];
+  // Conversation history routes disabled - component files do not exist
+  // {
+  //   path: '/history',
+  //   name: 'ConversationHistory',
+  //   component: () => import('@/views/ConversationHistory.vue'),
+  //   meta: {
+  //     requiresAuth: true,
+  //     title: 'Conversation History',
+  //     description: 'View and manage conversation history'
+  //   }
+  // },
+  ];
 
-export default ConversationRoutes;
+
+export default []; // Return empty array to prevent route errors

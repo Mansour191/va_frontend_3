@@ -66,10 +66,13 @@ const steps = ref([]);
 
 const fetchOrderSteps = async () => {
   try {
-    const response = await fetch('/api/how-to-order/steps');
-    if (response.ok) {
-      const data = await response.json();
-      steps.value = data.map(step => ({
+    const { HOW_TO_ORDER_STEPS_QUERY } = await import('@/integration/graphql/common.graphql');
+    const { useQuery } = await import('@apollo/client');
+    
+    const { data, error } = await useQuery(HOW_TO_ORDER_STEPS_QUERY);
+    
+    if (data.value && !error.value) {
+      steps.value = data.value.howToOrderSteps.map(step => ({
         title: step.title,
         description: step.description
       }));

@@ -68,5 +68,20 @@ export function useAppConfig() {
   }
 }
 
-// Export singleton instance for global use (backward compatibility)
-export const appConfig = useAppConfig()
+// Create proper singleton export with lazy initialization
+let appConfigInstance = null
+
+export const appConfig = new Proxy({}, {
+  get(target, prop) {
+    if (!appConfigInstance) {
+      appConfigInstance = useAppConfig()
+    }
+    return appConfigInstance[prop]
+  },
+  has(target, prop) {
+    if (!appConfigInstance) {
+      appConfigInstance = useAppConfig()
+    }
+    return prop in appConfigInstance
+  }
+})

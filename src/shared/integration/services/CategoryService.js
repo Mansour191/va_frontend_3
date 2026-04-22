@@ -1,8 +1,8 @@
 import i18n from '@/plugins/i18n';
+import { CATEGORIES_QUERY } from '@/integration/graphql/categories.graphql';
 
 class CategoryService {
   constructor() {
-    this.apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
     this.cache = new Map();
     this.cacheTTL = 10 * 60 * 1000; // 10 دقائق
   }
@@ -18,18 +18,17 @@ class CategoryService {
     }
 
     try {
-      const url = `${this.apiBaseUrl}/categories/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
+      const { default: apolloClient } = await import('@/shared/plugins/apolloPlugin');
+      
+      const result = await apolloClient.query({
+        query: CATEGORIES_QUERY
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
       }
       
-      const data = await response.json();
-      const categories = this._transformCategories(data);
+      const categories = this._transformGraphQLCategories(result.data?.categories?.edges || []);
       
       this._setCache(cacheKey, categories);
       return categories;
@@ -125,7 +124,42 @@ class CategoryService {
   }
 
   /**
-   * تحويل بيانات الفئات من الـ API
+   * تحويل بيانات GraphQL إلى التنسيق المستخدم في الواجهة
+   */
+  _transformGraphQLCategories(edges) {
+    const lang = i18n.global.locale.value || i18n.global.locale;
+    return edges.map(edge => this._transformGraphQLCategory(edge.node, lang));
+  }
+
+  /**
+   * تحويل بيانات فئة واحدة من GraphQL
+   */
+  _transformGraphQLCategory(category, lang = null) {
+    if (!category) return null;
+    
+    const currentLang = lang || i18n.global.locale.value || i18n.global.locale;
+    
+    return {
+      id: category.id,
+      name: currentLang === 'ar' ? category.nameAr : category.nameEn,
+      name_ar: category.nameAr,
+      name_en: category.nameEn,
+      slug: category.slug,
+      description: currentLang === 'ar' ? category.descriptionAr : category.descriptionEn,
+      description_ar: category.descriptionAr,
+      description_en: category.descriptionEn,
+      image: category.image || 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=800&auto=format&fit=crop',
+      icon: category.icon || 'mdi-folder',
+      product_count: category.productCount || 0,
+      is_active: category.isActive !== false,
+      parent: category.parent,
+      created_at: category.createdAt,
+      link: `/category/${category.slug}`
+    };
+  }
+
+  /**
+   * تحويل بيانات الفئات من الـ API (Legacy)
    */
   _transformCategories(data) {
     const lang = i18n.global.locale.value || i18n.global.locale;
@@ -133,19 +167,27 @@ class CategoryService {
   }
 
   /**
-   * تحويل بيانات فئة واحدة
+   * تحويل بيانات فئة واحدة (Legacy)
    */
   _transformCategory(category, lang = null) {
     const currentLang = lang || i18n.global.locale.value || i18n.global.locale;
+    
     return {
       id: category.id,
       name: currentLang === 'ar' ? category.name_ar : category.name_en,
       name_ar: category.name_ar,
       name_en: category.name_en,
       slug: category.slug,
-      icon: category.icon,
-      waste_percent: category.waste_percent,
-      product_count: category.product_count || 0
+      description: currentLang === 'ar' ? category.description_ar : category.description_en,
+      description_ar: category.description_ar,
+      description_en: category.description_en,
+      image: category.image || 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=800&auto=format&fit=crop',
+      icon: category.icon || 'mdi-folder',
+      product_count: category.product_count || 0,
+      is_active: category.is_active !== false,
+      parent: category.parent,
+      created_at: category.created_at,
+      link: `/category/${category.slug}`
     };
   }
 

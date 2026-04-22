@@ -478,16 +478,6 @@ const handleGenerateInvoice = async (order) => {
   }
 };
 
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ar-DZ', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('ar-DZ', {
@@ -518,27 +508,6 @@ const getStatusColor = (status) => {
   return colorMap[status] || 'default';
 };
 
-// Computed
-const filteredOrders = computed(() => {
-  let filtered = orders.value;
-
-  // Filter by status
-  if (selectedFilter.value !== 'all') {
-    filtered = filtered.filter(order => order.status === selectedFilter.value);
-  }
-
-  // Filter by search query
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(order => 
-      order.id.toString().includes(query) ||
-      order.customerName.toLowerCase().includes(query) ||
-      order.items.some(item => item.name.toLowerCase().includes(query))
-    );
-  }
-
-  return filtered;
-});
 
 onMounted(() => {
   loadOrders();
@@ -715,25 +684,6 @@ const ordersPerPage = 10;
 
 const orders = ref([]);
 
-const filteredOrders = computed(() => {
-  let filtered = orders.value;
-
-  // Apply status filter
-  if (selectedFilter.value !== 'all') {
-    filtered = filtered.filter(order => order.status === selectedFilter.value);
-  }
-
-  // Apply search filter
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(order => 
-      order.id.toLowerCase().includes(query) ||
-      order.items.some(item => item.name.toLowerCase().includes(query))
-    );
-  }
-
-  return filtered;
-});
 
 const visiblePages = computed(() => {
   const pages = [];
@@ -752,34 +702,6 @@ const visiblePages = computed(() => {
   return pages;
 });
 
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ar-SA', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-const formatPrice = (price) => {
-  return new Intl.NumberFormat('ar-SA', {
-    style: 'currency',
-    currency: 'DZD'
-  }).format(price);
-};
-
-const getStatusText = (status) => {
-  const statusMap = {
-    pending: 'قيد الانتظار',
-    processing: 'قيد المعالجة',
-    shipped: 'تم الشحن',
-    delivered: 'تم التسليم',
-    cancelled: 'ملغي'
-  };
-  return statusMap[status] || status;
-};
 
 const toggleSearch = () => {
   showSearch.value = !showSearch.value;

@@ -1,12 +1,12 @@
 // ERPNext Service - Unified Service for ERPNext Integration
-import { apolloClient } from '@/shared/services/graphql/apolloClient';
+import { client } from '@/shared/plugins/apolloPlugin';
 
 class ERPNextService {
   constructor() {
     this.baseURL = import.meta.env.VITE_ERPNEXT_API_URL || '/api';
     this.apiKey = import.meta.env.VITE_ERPNEXT_API_KEY || '';
     this.apiSecret = import.meta.env.VITE_ERPNEXT_API_SECRET || '';
-    this.client = apolloClient;
+    this.client = client;
   }
 
   static getInstance() {

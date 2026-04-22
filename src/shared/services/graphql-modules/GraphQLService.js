@@ -1,14 +1,14 @@
-import { apolloClient } from '@/shared/services/graphql/apolloClient';
+import { client } from '@/shared/plugins/apolloPlugin';
 import { provideApolloClient } from '@vue/apollo-composable';
 import { gql } from '@apollo/client';
 
 // Ensure Apollo Client is available for GraphQL service
-provideApolloClient(apolloClient);
+provideApolloClient(client);
 
 // GraphQL Service - Direct Apollo Client usage for services
 class GraphQLService {
   constructor() {
-    this.client = apolloClient;
+    this.client = client;
   }
 
   async query(query, variables = {}, options = {}) {

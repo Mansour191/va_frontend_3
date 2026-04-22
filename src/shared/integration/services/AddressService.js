@@ -1,19 +1,41 @@
 /**
  * AddressService.js
- * خدمة إدارة عناوين المستخدمين في الجزائر
- * تتولى هذه الخدمة الربط مع API لإدارة عناوين الشحن والتوصيل
+ * GraphQL-based service for managing user addresses in Algeria
+ * This service handles all address operations through GraphQL queries and mutations
  */
+
+import { useQuery, useMutation } from '@vue/apollo-composable';
+import { useSubscriptionManager } from '@/composables/useSubscriptionManager';
+import { ValidationLayer } from '@/shared/utils/validationLayer';
+import {
+  GET_USER_ADDRESSES_QUERY,
+  GET_ADDRESS_QUERY,
+  GET_DEFAULT_ADDRESS_QUERY,
+  GET_WILAYAS_QUERY,
+  GET_WILAYAS_BASIC_QUERY,
+  GET_COMMUNES_QUERY,
+  GET_COMMUNES_BASIC_QUERY,
+  SEARCH_ADDRESSES_QUERY,
+  CREATE_ADDRESS_MUTATION,
+  UPDATE_ADDRESS_MUTATION,
+  DELETE_ADDRESS_MUTATION,
+  SET_DEFAULT_ADDRESS_MUTATION,
+  UPDATE_MULTIPLE_ADDRESSES_MUTATION,
+  ADDRESS_UPDATE_SUBSCRIPTION,
+  USER_ADDRESSES_UPDATE_SUBSCRIPTION
+} from '@/integration/graphql/addresses.graphql';
 
 class AddressService {
   constructor() {
-    this.apiEndpoint = import.meta.env.VITE_API_URL || 'https://api.vinylart.dz';
     this.cache = new Map();
-    this.cacheTTL = 15 * 60 * 1000; // 15 دقيقة
+    this.cacheTTL = 15 * 60 * 1000; // 15 minutes
+    this.serviceName = 'AddressService';
+    this.subscriptionManager = useSubscriptionManager(this.serviceName);
   }
 
   /**
-   * جلب جميع عناوين المستخدم
-   * @returns {Promise<Array>} - قائمة العناوين
+   * Get all user addresses
+   * @returns {Promise<Array>} - List of addresses
    */
   async getAddresses() {
     const cacheKey = 'user_addresses';
@@ -23,58 +45,76 @@ class AddressService {
     }
 
     try {
-      const url = `${this.apiEndpoint}/user/addresses/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        }
+      const { result } = await new Promise((resolve, reject) => {
+        const { result, error, loading } = useQuery(GET_USER_ADDRESSES_QUERY);
+        
+        const unwatch = this.subscriptionManager.trackWatcher(
+          'user_addresses_query',
+          () => {
+            if (!loading.value) {
+              if (error.value) {
+                reject(error.value);
+              } else if (result.value) {
+                resolve({ result: result.value });
+              }
+              unwatch();
+            }
+          }
+        );
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.me?.addresses) {
+        const addresses = this._transformAddresses(result.me.addresses);
+        this._setCache(cacheKey, addresses);
+        return addresses;
+      } else {
+        throw new Error('No addresses data received');
       }
-
-      const data = await response.json();
-      const addresses = this._transformAddresses(data);
-      
-      this._setCache(cacheKey, addresses);
-      return addresses;
     } catch (error) {
-      console.error('❌ Error fetching addresses:', error);
+      console.error('Error fetching addresses:', error);
       return this.getFallbackAddresses();
     }
   }
 
   /**
    * إنشاء عنوان جديد
-   * @param {Object} addressData - بيانات العنوان
+   * @param {Object} addressData - بيانات العنوان الجديد
    * @returns {Promise<Object>} - العنوان المنشأ
    */
   async createAddress(addressData) {
     try {
-      const url = `${this.apiEndpoint}/user/addresses/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._prepareAddressData(addressData))
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      // Client-side validation before GraphQL mutation
+      const validation = ValidationLayer.validateAddress(addressData);
+      if (!validation.isValid) {
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
       }
 
-      const data = await response.json();
-      const address = this._transformAddress(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_addresses');
-      
-      return address;
+      const { result } = await new Promise((resolve, reject) => {
+        const { mutate, onDone, onError } = useMutation(CREATE_ADDRESS_MUTATION);
+        
+        mutate({
+          input: this._prepareAddressData(addressData)
+        });
+
+        onDone((response) => {
+          resolve({ result: response.data });
+        });
+
+        onError((error) => {
+          reject(error);
+        });
+      });
+
+      if (result?.createAddress?.address) {
+        const address = this._transformAddress(result.createAddress.address);
+        
+        // Clear cache to force refresh
+        this.cache.delete('user_addresses');
+        
+        return address;
+      } else {
+        throw new Error('Failed to create address');
+      }
     } catch (error) {
       console.error('❌ Error creating address:', error);
       throw error;
@@ -89,27 +129,39 @@ class AddressService {
    */
   async updateAddress(id, addressData) {
     try {
-      const url = `${this.apiEndpoint}/user/addresses/${id}/`;
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._prepareAddressData(addressData))
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      // Client-side validation before GraphQL mutation
+      const validation = ValidationLayer.validateAddress(addressData);
+      if (!validation.isValid) {
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
       }
 
-      const data = await response.json();
-      const address = this._transformAddress(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_addresses');
-      
-      return address;
+      const { result } = await new Promise((resolve, reject) => {
+        const { mutate, onDone, onError } = useMutation(UPDATE_ADDRESS_MUTATION);
+        
+        mutate({
+          id,
+          input: this._prepareAddressData(addressData)
+        });
+
+        onDone((response) => {
+          resolve({ result: response.data });
+        });
+
+        onError((error) => {
+          reject(error);
+        });
+      });
+
+      if (result?.updateAddress?.address) {
+        const address = this._transformAddress(result.updateAddress.address);
+        
+        // Clear cache to force refresh
+        this.cache.delete('user_addresses');
+        
+        return address;
+      } else {
+        throw new Error('Failed to update address');
+      }
     } catch (error) {
       console.error('❌ Error updating address:', error);
       throw error;
@@ -123,22 +175,28 @@ class AddressService {
    */
   async deleteAddress(id) {
     try {
-      const url = `${this.apiEndpoint}/user/addresses/${id}/`;
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`
-        }
+      const { result } = await new Promise((resolve, reject) => {
+        const { mutate, onDone, onError } = useMutation(DELETE_ADDRESS_MUTATION);
+        
+        mutate({ id });
+
+        onDone((response) => {
+          resolve({ result: response.data });
+        });
+
+        onError((error) => {
+          reject(error);
+        });
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.deleteAddress?.success) {
+        // Clear cache to force refresh
+        this.cache.delete('user_addresses');
+        
+        return true;
+      } else {
+        throw new Error('Failed to delete address');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_addresses');
-      
-      return true;
     } catch (error) {
       console.error('❌ Error deleting address:', error);
       throw error;
@@ -152,25 +210,30 @@ class AddressService {
    */
   async setDefaultAddress(id) {
     try {
-      const url = `${this.apiEndpoint}/user/addresses/${id}/set-default/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        }
+      const { result } = await new Promise((resolve, reject) => {
+        const { mutate, onDone, onError } = useMutation(SET_DEFAULT_ADDRESS_MUTATION);
+        
+        mutate({ id });
+
+        onDone((response) => {
+          resolve({ result: response.data });
+        });
+
+        onError((error) => {
+          reject(error);
+        });
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.setDefaultAddress?.success) {
+        // Clear cache to force refresh
+        this.cache.delete('user_addresses');
+        
+        return true;
+      } else {
+        throw new Error('Failed to set default address');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_addresses');
-      
-      return true;
     } catch (error) {
-      console.error('❌ Error setting default address:', error);
+      console.error('Error setting default address:', error);
       throw error;
     }
   }
@@ -187,25 +250,33 @@ class AddressService {
     }
 
     try {
-      const url = `${this.apiEndpoint}/locations/wilayas/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      const { result } = await new Promise((resolve, reject) => {
+        const { result, error, loading } = useQuery(GET_WILAYAS_BASIC_QUERY);
+        
+        const unwatch = this.subscriptionManager.trackWatcher(
+          'wilayas_query',
+          () => {
+            if (!loading.value) {
+              if (error.value) {
+                reject(error.value);
+              } else if (result.value) {
+                resolve({ result: result.value });
+              }
+              unwatch();
+            }
+          }
+        );
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.wilayas) {
+        const wilayas = this._transformWilayas(result.wilayas);
+        this._setCache(cacheKey, wilayas);
+        return wilayas;
+      } else {
+        throw new Error('No wilayas data received');
       }
-
-      const data = await response.json();
-      const wilayas = this._transformWilayas(data);
-      
-      this._setCache(cacheKey, wilayas);
-      return wilayas;
     } catch (error) {
-      console.error('❌ Error fetching wilayas:', error);
+      console.error('Error fetching wilayas:', error);
       return this.getFallbackWilayas();
     }
   }
@@ -223,25 +294,35 @@ class AddressService {
     }
 
     try {
-      const url = `${this.apiEndpoint}/locations/wilayas/${wilayaCode}/communes/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      const { result } = await new Promise((resolve, reject) => {
+        const { result, error, loading } = useQuery(GET_COMMUNES_BASIC_QUERY, {
+          variables: { wilayaCode }
+        });
+        
+        const unwatch = this.subscriptionManager.trackWatcher(
+          `communes_query_${wilayaCode}`,
+          () => {
+            if (!loading.value) {
+              if (error.value) {
+                reject(error.value);
+              } else if (result.value) {
+                resolve({ result: result.value });
+              }
+              unwatch();
+            }
+          }
+        );
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.communes) {
+        const communes = this._transformCommunes(result.communes);
+        this._setCache(cacheKey, communes);
+        return communes;
+      } else {
+        throw new Error('No communes data received');
       }
-
-      const data = await response.json();
-      const communes = this._transformCommunes(data);
-      
-      this._setCache(cacheKey, communes);
-      return communes;
     } catch (error) {
-      console.error('❌ Error fetching communes:', error);
+      console.error('Error fetching communes:', error);
       return [];
     }
   }
@@ -426,10 +507,10 @@ class AddressService {
   }
 
   /**
-   * الحصول على توكن المصادقة
+   * Get authentication token using TokenManager
    */
   _getAuthToken() {
-    return localStorage.getItem('authToken') || 'mock-token';
+    return localStorage.getItem('token') || 'mock-token';
   }
 
   /**

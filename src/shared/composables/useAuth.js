@@ -6,6 +6,7 @@ import { useIdle } from '@vueuse/core'
 import { useMutation, useQuery } from '@vue/apollo-composable'
 import { gql } from '@apollo/client/core'
 import { logout, isAuthenticated, getCurrentUserRole } from '@/shared/plugins/apolloPlugin'
+import { TokenManager } from '@/shared/utils/errorHandler'
 
 // GraphQL Mutations
 const LOGIN_MUTATION = gql`
@@ -299,40 +300,12 @@ export function useAuth() {
   // Logout function
   const performLogout = () => {
     logout()
+    TokenManager.clearAuthTokens()
     user.value = null
     error.value = null
   }
   
-  // Refresh token function
-  const refreshAuthToken = async () => {
-    if (!refreshToken.value) {
-      throw new Error('No refresh token available')
-    }
     
-    try {
-      const { mutate: refreshMutation } = useMutation(REFRESH_TOKEN_MUTATION)
-      
-      const { data } = await refreshMutation({
-        refreshToken: refreshToken.value
-      })
-      
-      if (data.value?.refreshToken?.success) {
-        const { token, refreshToken: newRefresh } = data.value.refreshToken
-        
-        authToken.value = token
-        refreshToken.value = newRefresh
-        
-        return true
-      } else {
-        throw new Error('Token refresh failed')
-      }
-    } catch (err) {
-      console.error('Token refresh error:', err)
-      performLogout()
-      return false
-    }
-  }
-  
   // Get current user
   const getCurrentUser = async () => {
     if (!authToken.value) {
@@ -381,7 +354,6 @@ export function useAuth() {
     register,
     socialLogin,
     logout: performLogout,
-    refreshAuthToken,
     getCurrentUser,
     initializeAuth
   }

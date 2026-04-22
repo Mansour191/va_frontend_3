@@ -224,6 +224,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vuetify'
+import { useQuery, useMutation } from '@vue/apollo-composable'
+import { 
+  SHIPPING_METHODS_QUERY,
+  CREATE_SHIPPING_METHOD_MUTATION,
+  UPDATE_SHIPPING_METHOD_MUTATION,
+  DELETE_SHIPPING_METHOD_MUTATION
+} from '@/integration/graphql/shipping.graphql'
+import { ValidationLayer } from '@/shared/utils/validationLayer'
 
 // Props
 const props = defineProps({
@@ -343,6 +351,11 @@ function getServiceTypeColor(serviceType) {
   return colors[serviceType] || 'grey'
 }
 
+// GraphQL Mutations
+const { mutate: createShippingMethod } = useMutation(CREATE_SHIPPING_METHOD_MUTATION)
+const { mutate: updateShippingMethod } = useMutation(UPDATE_SHIPPING_METHOD_MUTATION)
+const { mutate: deleteShippingMethod } = useMutation(DELETE_SHIPPING_METHOD_MUTATION)
+
 async function saveMethod() {
   if (!isFormValid.value) {
     toast({
@@ -354,31 +367,53 @@ async function saveMethod() {
     return
   }
 
+  // Client-side validation
+  const validationInput = {
+    name: formData.value.name,
+    cost: formData.value.cost || 0,
+    deliveryDays: formData.value.expected_delivery_time || 1
+  }
+  
+  const validation = ValidationLayer.validateShippingMethod(validationInput)
+  if (!validation.isValid) {
+    toast({
+      title: '❌ خطأ في التحقق',
+      text: validation.errors.join('، '),
+      color: 'error',
+      timeout: 5000
+    })
+    return
+  }
+
   isSaving.value = true
 
   try {
-    const url = editMode.value 
-      ? `/api/shipping/methods/${formData.value.id}/`
-      : '/api/shipping/methods/'
+    const variables = {
+      name: formData.value.name,
+      provider: formData.value.provider,
+      serviceType: formData.value.service_type,
+      expectedDeliveryTime: formData.value.expected_delivery_time,
+      description: formData.value.description,
+      isActive: formData.value.is_active,
+      apiEndpoint: formData.value.api_endpoint,
+      apiKey: formData.value.api_key,
+      trackingUrlTemplate: formData.value.tracking_url_template
+    }
 
-    const method = editMode.value ? 'PATCH' : 'POST'
-    
-    const formDataToSend = new FormData()
-    Object.keys(formData.value).forEach(key => {
-      if (key !== 'id' && formData.value[key] !== null) {
-        formDataToSend.append(key, formData.value[key])
-      }
-    })
+    // Only include logo if it's a string (URL), not a File object
+    if (typeof formData.value.logo === 'string' && formData.value.logo) {
+      variables.logo = formData.value.logo
+    }
 
-    const response = await fetch(url, {
-      method: method,
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
-      },
-      body: formDataToSend
-    })
+    let result
+    if (editMode.value) {
+      variables.id = formData.value.id
+      result = await updateShippingMethod(variables)
+    } else {
+      result = await createShippingMethod(variables)
+    }
 
-    if (response.ok) {
+    if (result?.data?.createShippingMethod?.success || result?.data?.updateShippingMethod?.success) {
       toast({
         title: '✅ نجاح',
         text: editMode.value ? 'تم تحديث الشركة بنجاح' : 'تم إضافة الشركة بنجاح',
@@ -390,7 +425,7 @@ async function saveMethod() {
       resetForm()
       
       // Refresh list
-      await fetchShippingMethods()
+      await refetchShippingMethods()
       
       // Emit saved event
       emit('saved')
@@ -419,14 +454,9 @@ async function deleteMethod(method) {
   isDeleting.value = true
 
   try {
-    const response = await fetch(`/api/shipping/methods/${method.id}/`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
-      }
-    })
+    const result = await deleteShippingMethod({ id: method.id })
 
-    if (response.ok) {
+    if (result?.data?.deleteShippingMethod?.success) {
       toast({
         title: '✨ تم الحذف',
         text: 'تم حذف الشركة بنجاح',
@@ -435,7 +465,7 @@ async function deleteMethod(method) {
       })
 
       // Refresh list
-      await fetchShippingMethods()
+      await refetchShippingMethods()
       
       // Emit saved event
       emit('saved')
@@ -487,34 +517,21 @@ function closeDialog() {
   resetForm()
 }
 
-async function fetchShippingMethods() {
-  isLoading.value = true
-  
-  try {
-    const response = await fetch('/api/shipping/methods/', {
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
-      }
-    })
+// GraphQL Query for shipping methods
+const { 
+  result: shippingMethodsResult, 
+  loading: isLoading, 
+  refetch: refetchShippingMethods 
+} = useQuery(SHIPPING_METHODS_QUERY)
 
-    if (response.ok) {
-      const data = await response.json()
-      shippingMethods.value = data.results || data
-    }
-  } catch (error) {
-    console.error('Error fetching shipping methods:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-function getAuthToken() {
-  return localStorage.getItem('auth_token') || ''
-}
+// Computed property to extract shipping methods from GraphQL result
+const shippingMethods = computed(() => {
+  return shippingMethodsResult.value?.shippingMethods?.edges?.map(edge => edge.node) || []
+})
 
 // Lifecycle
 onMounted(() => {
-  fetchShippingMethods()
+  // GraphQL query will automatically fetch on mount
 })
 </script>
 

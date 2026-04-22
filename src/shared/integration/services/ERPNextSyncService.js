@@ -2,13 +2,29 @@
 // Handles sync status, notifications, and manual sync operations
 
 import { ref, computed, reactive } from 'vue';
-import { useQuery, useMutation } from '@apollo/client';
-import { useGraphQLStreaming } from '@/shared/services/graphql-modules/GraphQLStreamingService';
+import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { useErrorBoundary } from '@/shared/composables/useErrorBoundary';
+import { syncLock } from '@/shared/utils/syncLock';
 
 // GraphQL queries and mutations for sync operations
 import {
-  ERPNEXT_SYNC_STATUS_SUBSCRIPTION
-} from '@/shared/services/graphql/subscriptions';
+  GET_SYNC_STATUS,
+  GET_SYNC_HISTORY,
+  GET_SYNC_REPORT,
+  GET_SYNC_CONFIGURATION,
+  GET_SYNC_METRICS,
+  TRIGGER_MANUAL_SYNC,
+  SCHEDULE_AUTO_SYNC,
+  UPDATE_SYNC_CONFIGURATION,
+  CANCEL_SYNC,
+  RETRY_FAILED_SYNC,
+  RESET_SYNC_STATISTICS,
+  TEST_ERPNEXT_CONNECTION,
+  SYNC_STATUS_UPDATED,
+  SYNC_PROGRESS_UPDATED,
+  SYNC_LOGS_UPDATED,
+  SYNC_NOTIFICATION
+} from '@/integration/graphql/erpnext';
 
 class ERPNextSyncService {
   constructor() {
@@ -28,29 +44,61 @@ class ERPNextSyncService {
     });
     
     this.notifications = ref([]);
-    this.subscription = null;
-    this.streamingService = useGraphQLStreaming();
+    this.subscriptions = new Map();
+    this.errorBoundary = useErrorBoundary();
+    this.isProcessing = false;
+    this.currentOperation = null;
     
-    // Initialize streaming subscription
-    this.initializeSubscription();
+    // Initialize GraphQL subscriptions
+    this.initializeSubscriptions();
   }
 
-  // Initialize real-time sync status subscription
-  async initializeSubscription() {
+  // Initialize real-time GraphQL subscriptions
+  initializeSubscriptions() {
     try {
-      this.subscription = await this.streamingService.subscribeToERPNextSyncStatus({
-        onNext: (data) => {
-          this.updateSyncStatus(data);
+      // Sync status subscription
+      const statusSubscription = useSubscription(SYNC_STATUS_UPDATED, {
+        onSubscriptionData: ({ subscriptionData }) => {
+          if (subscriptionData.data?.erpNextSyncStatusUpdated) {
+            this.updateSyncStatus(subscriptionData.data.erpNextSyncStatusUpdated);
+          }
         },
         onError: (error) => {
-          console.error('ERPNext sync subscription error:', error);
-          this.syncStatus.errorMessage = error.error;
+          this.errorBoundary.handleError(error, 'ERPNext sync status subscription');
         }
       });
       
-      console.log('🔄 ERPNext sync subscription initialized');
+      // Sync logs subscription
+      const logsSubscription = useSubscription(SYNC_LOGS_UPDATED, {
+        onSubscriptionData: ({ subscriptionData }) => {
+          if (subscriptionData.data?.erpNextSyncLogsUpdated) {
+            this.handleSyncLog(subscriptionData.data.erpNextSyncLogsUpdated);
+          }
+        },
+        onError: (error) => {
+          this.errorBoundary.handleError(error, 'ERPNext sync logs subscription');
+        }
+      });
+      
+      // Sync notifications subscription
+      const notificationSubscription = useSubscription(SYNC_NOTIFICATION, {
+        onSubscriptionData: ({ subscriptionData }) => {
+          if (subscriptionData.data?.erpNextSyncNotification) {
+            this.handleNotification(subscriptionData.data.erpNextSyncNotification);
+          }
+        },
+        onError: (error) => {
+          this.errorBoundary.handleError(error, 'ERPNext sync notification subscription');
+        }
+      });
+      
+      this.subscriptions.set('status', statusSubscription);
+      this.subscriptions.set('logs', logsSubscription);
+      this.subscriptions.set('notifications', notificationSubscription);
+      
+      console.log('🔄 ERPNext GraphQL subscriptions initialized');
     } catch (error) {
-      console.error('Failed to initialize ERPNext sync subscription:', error);
+      this.errorBoundary.handleError(error, 'ERPNext subscription initialization');
     }
   }
 
@@ -83,173 +131,213 @@ class ERPNextSyncService {
     return computed(() => this.syncStatus.statistics);
   }
 
-  // Manual sync trigger (calls backend management command)
+  // Manual sync trigger using GraphQL mutation with sync lock protection
   async triggerManualSync(syncType = 'all', dryRun = false) {
-    try {
-      console.log(`🔄 Triggering manual sync: ${syncType}, dry-run: ${dryRun}`);
-      
-      // This would call a GraphQL mutation that triggers the management command
-      // For now, we'll simulate the call
-      const response = await fetch('/api/management/run_sync/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': this.getCSRFToken(),
+    const operationName = `manual_sync_${syncType}`;
+    
+    // Check if already processing
+    if (this.isProcessing) {
+      console.log(`⚠️ Sync already in progress: ${this.currentOperation}`);
+      return {
+        success: false,
+        message: `Sync already in progress: ${this.currentOperation}`,
+        error: new Error('Concurrent sync operation detected')
+      };
+    }
+
+    // Acquire sync lock
+    const lockAcquired = await syncLock.acquireLock(operationName);
+    if (!lockAcquired) {
+      return {
+        success: false,
+        message: `Sync operation already locked: ${operationName}`,
+        error: new Error('Sync lock acquisition failed')
+      };
+    }
+
+    return this.errorBoundary.execute(async () => {
+      try {
+        this.isProcessing = true;
+        this.currentOperation = operationName;
+        
+        console.log(`🔄 Triggering manual sync: ${syncType}, dry-run: ${dryRun}`);
+        
+        const { mutate } = useMutation(TRIGGER_MANUAL_SYNC);
+        
+        const result = await mutate({
+          variables: {
+            syncType,
+            dryRun
+          },
+          errorPolicy: 'all'
+        });
+        
+        if (result.data?.erpNextTriggerManualSync?.success) {
+          const syncResult = result.data.erpNextTriggerManualSync;
+          console.log('✅ Manual sync triggered successfully');
+          return {
+            success: true,
+            message: syncResult.message,
+            syncId: syncResult.syncId,
+            estimatedDuration: syncResult.estimatedDuration
+          };
+        } else {
+          const error = result.errors?.[0] || new Error('Unknown error');
+          console.error('❌ Manual sync failed:', error);
+          return {
+            success: false,
+            message: error.message,
+            error: error
+          };
+        }
+      } finally {
+        this.isProcessing = false;
+        this.currentOperation = null;
+        syncLock.releaseLock(operationName);
+      }
+    }, 'ERPNext manual sync trigger');
+  }
+
+  // Get sync history using GraphQL query
+  async getSyncHistory(limit = 10, offset = 0, status = null) {
+    return this.errorBoundary.execute(async () => {
+      const { result } = useQuery(GET_SYNC_HISTORY, {
+        variables: {
+          limit,
+          offset,
+          status
         },
-        body: JSON.stringify({
-          type: syncType,
-          dry_run: dryRun,
-        }),
+        errorPolicy: 'all'
       });
       
-      const result = await response.json();
+      if (result.value?.data?.erpNextSyncHistory) {
+        return result.value.data.erpNextSyncHistory;
+      } else {
+        console.warn('No sync history data available');
+        return [];
+      }
+    }, 'ERPNext sync history fetch');
+  }
+
+  // Get detailed sync report using GraphQL query
+  async getSyncReport(syncId) {
+    return this.errorBoundary.execute(async () => {
+      const { result } = useQuery(GET_SYNC_REPORT, {
+        variables: {
+          syncId
+        },
+        errorPolicy: 'all'
+      });
       
-      if (result.success) {
-        console.log('✅ Manual sync triggered successfully');
+      if (result.value?.data?.erpNextSyncReport) {
+        return result.value.data.erpNextSyncReport;
+      } else {
+        console.warn('No sync report data available for syncId:', syncId);
+        return null;
+      }
+    }, 'ERPNext sync report fetch');
+  }
+
+  // Schedule automatic sync using GraphQL mutation
+  async scheduleAutoSync(interval = 'hourly', enabled = true) {
+    return this.errorBoundary.execute(async () => {
+      const { mutate } = useMutation(SCHEDULE_AUTO_SYNC);
+      
+      const result = await mutate({
+        variables: {
+          interval,
+          enabled
+        },
+        errorPolicy: 'all'
+      });
+      
+      if (result.data?.erpNextScheduleAutoSync?.success) {
+        const scheduleResult = result.data.erpNextScheduleAutoSync;
+        console.log('✅ Auto-sync scheduled successfully');
         return {
           success: true,
-          message: result.message,
-          syncId: result.sync_id
+          message: scheduleResult.message,
+          scheduleId: scheduleResult.scheduleId,
+          nextSyncTime: scheduleResult.nextSyncTime
         };
       } else {
-        console.error('❌ Manual sync failed:', result.message);
+        const error = result.errors?.[0] || new Error('Unknown error');
+        console.error('❌ Failed to schedule auto-sync:', error);
         return {
           success: false,
-          message: result.message,
-          error: result.error
+          message: error.message,
+          error: error
         };
       }
-      
-    } catch (error) {
-      console.error('❌ Failed to trigger manual sync:', error);
-      return {
-        success: false,
-        message: 'Failed to trigger manual sync',
-        error: error.message
-      };
-    }
+    }, 'ERPNext auto-sync schedule');
   }
 
-  // Get sync history
-  async getSyncHistory(limit = 10) {
-    try {
-      const response = await fetch('/api/erpnext/sync-history/');
-      const history = await response.json();
-      
-      return history.slice(0, limit);
-    } catch (error) {
-      console.error('Failed to get sync history:', error);
-      return [];
-    }
-  }
-
-  // Get detailed sync report
-  async getSyncReport(syncId) {
-    try {
-      const response = await fetch(`/api/erpnext/sync-report/${syncId}/`);
-      const report = await response.json();
-      
-      return report;
-    } catch (error) {
-      console.error('Failed to get sync report:', error);
-      return null;
-    }
-  }
-
-  // Schedule automatic sync (if allowed)
-  async scheduleAutoSync(interval = 'hourly') {
-    try {
-      const response = await fetch('/api/erpnext/schedule-sync/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': this.getCSRFToken(),
-        },
-        body: JSON.stringify({
-          interval,
-        }),
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        console.log('✅ Auto-sync scheduled successfully');
-        return result;
-      } else {
-        console.error('❌ Failed to schedule auto-sync:', result.message);
-        return result;
-      }
-      
-    } catch (error) {
-      console.error('❌ Failed to schedule auto-sync:', error);
-      return {
-        success: false,
-        message: 'Failed to schedule auto-sync',
-        error: error.message
-      };
-    }
-  }
-
-  // Get sync configuration
+  // Get sync configuration using GraphQL query
   async getSyncConfiguration() {
-    try {
-      const response = await fetch('/api/erpnext/sync-config/');
-      const config = await response.json();
-      
-      return config;
-    } catch (error) {
-      console.error('Failed to get sync configuration:', error);
-      return null;
-    }
-  }
-
-  // Update sync configuration
-  async updateSyncConfiguration(config) {
-    try {
-      const response = await fetch('/api/erpnext/sync-config/', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': this.getCSRFToken(),
-        },
-        body: JSON.stringify(config),
+    return this.errorBoundary.execute(async () => {
+      const { result } = useQuery(GET_SYNC_CONFIGURATION, {
+        errorPolicy: 'all'
       });
       
-      const result = await response.json();
-      
-      if (result.success) {
-        console.log('✅ Sync configuration updated successfully');
-        return result;
+      if (result.value?.data?.erpNextSyncConfig) {
+        return result.value.data.erpNextSyncConfig;
       } else {
-        console.error('❌ Failed to update sync configuration:', result.message);
-        return result;
+        console.warn('No sync configuration data available');
+        return null;
       }
-      
-    } catch (error) {
-      console.error('❌ Failed to update sync configuration:', error);
-      return {
-        success: false,
-        message: 'Failed to update sync configuration',
-        error: error.message
-      };
-    }
+    }, 'ERPNext sync configuration fetch');
   }
 
-  // Test ERPNext connection
-  async testConnection() {
-    try {
-      const response = await fetch('/api/erpnext/test-connection/');
-      const result = await response.json();
+  // Update sync configuration using GraphQL mutation
+  async updateSyncConfiguration(config) {
+    return this.errorBoundary.execute(async () => {
+      const { mutate } = useMutation(UPDATE_SYNC_CONFIGURATION);
       
-      return result;
-    } catch (error) {
-      console.error('Failed to test ERPNext connection:', error);
-      return {
-        success: false,
-        message: 'Connection test failed',
-        error: error.message
-      };
-    }
+      const result = await mutate({
+        variables: {
+          config
+        },
+        errorPolicy: 'all'
+      });
+      
+      if (result.data?.erpNextUpdateSyncConfig?.success) {
+        const updateResult = result.data.erpNextUpdateSyncConfig;
+        console.log('✅ Sync configuration updated successfully');
+        return {
+          success: true,
+          message: updateResult.message,
+          config: updateResult.config
+        };
+      } else {
+        const error = result.errors?.[0] || new Error('Unknown error');
+        console.error('❌ Failed to update sync configuration:', error);
+        return {
+          success: false,
+          message: error.message,
+          error: error
+        };
+      }
+    }, 'ERPNext sync configuration update');
+  }
+
+  // Test ERPNext connection using GraphQL query
+  async testConnection() {
+    return this.errorBoundary.execute(async () => {
+      const { result } = useQuery(TEST_ERPNEXT_CONNECTION, {
+        errorPolicy: 'all'
+      });
+      
+      if (result.value?.data?.erpNextConnectionTest) {
+        return result.value.data.erpNextConnectionTest;
+      } else {
+        console.warn('Connection test failed - no data available');
+        return {
+          success: false,
+          message: 'Connection test failed - no response',
+          error: 'No data available'
+        };
+      }
+    }, 'ERPNext connection test');
   }
 
   // Get sync metrics
@@ -351,12 +439,50 @@ class ERPNextSyncService {
     return cookie ? cookie.split('=')[1] : '';
   }
 
+  // Handle sync log updates
+  handleSyncLog(logData) {
+    console.log('📝 ERPNext sync log:', logData);
+    // Could store logs in a reactive array if needed for UI display
+  }
+  
+  // Handle sync notifications
+  handleNotification(notificationData) {
+    console.log('🔔 ERPNext sync notification:', notificationData);
+    this.notifications.value.push(notificationData);
+    
+    // Keep only last 50 notifications
+    if (this.notifications.value.length > 50) {
+      this.notifications.value = this.notifications.value.slice(-50);
+    }
+  }
+  
+  // Get current sync status with GraphQL fallback
+  async getCurrentSyncStatus() {
+    return this.errorBoundary.execute(async () => {
+      const { result } = useQuery(GET_SYNC_STATUS, {
+        errorPolicy: 'all'
+      });
+      
+      if (result.value?.data?.erpNextSyncStatus) {
+        this.updateSyncStatus(result.value.data.erpNextSyncStatus);
+        return result.value.data.erpNextSyncStatus;
+      } else {
+        console.warn('No sync status data available');
+        return this.syncStatus;
+      }
+    }, 'ERPNext current sync status fetch');
+  }
+  
   // Cleanup
   cleanup() {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
-      this.subscription = null;
-    }
+    this.subscriptions.forEach((subscription, key) => {
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+        console.log(`🔄 Cleaned up ${key} subscription`);
+      }
+    });
+    this.subscriptions.clear();
+    this.notifications.value = [];
   }
 }
 

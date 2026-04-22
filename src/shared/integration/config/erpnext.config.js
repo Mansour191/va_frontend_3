@@ -1,9 +1,14 @@
-// نفس الكود السابق - احتفظ به كما هو
+// ERPNext Configuration - GraphQL-focused
 export default {
   defaultCurrency: 'DZD',
-  baseURL: process.env.VUE_APP_ERPNEXT_URL || 'https://your-erpnext.com',
-  apiKey: process.env.VUE_APP_ERPNEXT_API_KEY || 'demo-key',
-  apiSecret: process.env.VUE_APP_ERPNEXT_API_SECRET || 'demo-secret',
+  
+  // GraphQL Configuration
+  graphqlEndpoint: import.meta.env.VITE_GRAPHQL_URL || '/graphql',
+  
+  // ERPNext External API (for wrapper service only)
+  erpnextURL: import.meta.env.VITE_ERPNEXT_URL || 'https://your-erpnext.com',
+  erpnextApiKey: import.meta.env.VITE_ERPNEXT_API_KEY || '',
+  erpnextApiSecret: import.meta.env.VITE_ERPNEXT_API_SECRET || '',
   timeout: 30000,
 
   // إعدادات الدينار الجزائري
@@ -30,22 +35,23 @@ export default {
     },
   },
 
-  endpoints: {
-    products: '/api/resource/Item',
-    customers: '/api/resource/Customer',
-    salesOrders: '/api/resource/Sales Order',
-    salesInvoices: '/api/resource/Sales Invoice',
-    stockBalance: '/api/method/erpnext.stock.utils.get_stock_balance',
-    versions: '/api/method/erpnext.versions.get_versions',
-  },
-
+  // GraphQL Sync Configuration
   sync: {
     interval: 5 * 60 * 1000,
     retryAttempts: 3,
     retryDelay: 5000,
     batchSize: 50,
+    autoSyncEnabled: true,
+    syncTypes: {
+      products: true,
+      customers: true,
+      orders: true,
+      inventory: true,
+      pricing: true
+    }
   },
 
+  // Category Mapping
   categoryMapping: {
     walls: 'ملصقات جدران',
     doors: 'ملصقات أبواب',
@@ -56,6 +62,15 @@ export default {
     kitchens: 'ملصقات مطابخ',
   },
 
+  // ERPNext System Settings
   defaultWarehouse: 'Stores - SA',
   defaultTaxAccount: 'VAT - 15% - SA',
+
+  // GraphQL Wrapper Settings
+  wrapper: {
+    preferGraphQL: true,
+    fallbackToREST: true,
+    logFailures: true,
+    retryOnFailure: true
+  }
 };

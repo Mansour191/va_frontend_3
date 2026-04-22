@@ -147,16 +147,6 @@ export default [
     },
   },
   {
-    path: '/getlocation',
-    name: 'GetLocation',
-    component: () => import(/* webpackChunkName: "test" */ '@/test/GetLocation.vue'),
-    meta: { 
-      title: 'اختبار تحديد الموقع',
-      requiresAuth: false,
-      isPublic: true
-    },
-  },
-  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import(/* webpackChunkName: "home" */ '@/modules/public/views/NotFound.vue'),

@@ -1,0 +1,73 @@
+# GraphQL queries and mutations for Algerian locations (Wilayas)
+# Used by Checkout.vue with 2-second fallback to algeriaStates.js
+
+query GetAlgerianWilayas {
+  algerianWilayas {
+    id
+    wilayaId
+    nameAr
+    nameFr
+    nameEn
+    code
+    isActive
+    freeShippingMinimum
+    deliveryZones {
+      id
+      name
+      postalCodes
+    }
+  }
+}
+
+query GetWilayaById($wilayaId: String!) {
+  wilaya(wilayaId: $wilayaId) {
+    id
+    wilayaId
+    nameAr
+    nameFr
+    nameEn
+    code
+    isActive
+    freeShippingMinimum
+    deliveryZones {
+      id
+      name
+      postalCodes
+    }
+  }
+}
+
+query GetWilayasByRegion($region: String!) {
+  wilayasByRegion(region: $region) {
+    id
+    wilayaId
+    nameAr
+    nameFr
+    nameEn
+    code
+    isActive
+    freeShippingMinimum
+  }
+}
+
+mutation ValidateAlgerianPostalCode($postalCode: String!, $wilayaId: String!) {
+  validateAlgerianPostalCode(postalCode: $postalCode, wilayaId: $wilayaId) {
+    isValid
+    wilaya {
+      id
+      wilayaId
+      nameAr
+      nameFr
+    }
+    errorMessage
+  }
+}
+
+mutation ValidateAlgerianPhone($phone: String!) {
+  validateAlgerianPhone(phone: $phone) {
+    isValid
+    formattedPhone
+    phoneType # MOBILE, LANDLINE, INVALID
+    errorMessage
+  }
+}

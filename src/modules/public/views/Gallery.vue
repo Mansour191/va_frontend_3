@@ -127,34 +127,29 @@
 
 <script setup>
 import { ref, computed, reactive, watch, onMounted } from 'vue';
+import { useQuery } from '@vue/apollo-composable';
+import { 
+  GALLERY_CATEGORIES_QUERY, 
+  GALLERY_ITEMS_QUERY 
+} from '@/integration/graphql/common.graphql';
 
 // State
 const activeCategory = ref('all');
 const itemsPerPage = ref(12);
 const currentPage = ref(1);
-const loading = ref(false);
 
-// Categories - Dynamic loading from API
-const categories = ref([]);
+// GraphQL Query for gallery categories
+const { 
+  result: categoriesResult, 
+  error: categoriesError 
+} = useQuery(GALLERY_CATEGORIES_QUERY);
 
-const fetchCategories = async () => {
-  try {
-    const response = await fetch('/api/gallery/categories');
-    if (response.ok) {
-      const data = await response.json();
-      categories.value = [
-        { value: 'all', nameKey: 'allCategories', icon: 'mdi-view-grid' },
-        ...data.map(cat => ({
-          value: cat.value,
-          nameKey: cat.name_key,
-          icon: cat.icon || 'mdi-view-grid'
-        }))
-      ];
-    }
-  } catch (error) {
-    console.error('Failed to fetch gallery categories:', error);
+// Computed property for categories
+const categories = computed(() => {
+  if (categoriesError.value) {
+    console.error('GraphQL Error fetching categories:', categoriesError.value);
     // Fallback to static data
-    categories.value = [
+    return [
       { value: 'all', nameKey: 'allCategories', icon: 'mdi-view-grid' },
       { value: 'furniture', nameKey: 'furniture', icon: 'mdi-sofa' },
       { value: 'doors', nameKey: 'doors', icon: 'mdi-door' },
@@ -165,43 +160,53 @@ const fetchCategories = async () => {
       { value: 'cars', nameKey: 'cars', icon: 'mdi-car' },
     ];
   }
-};
+  
+  const data = categoriesResult.value?.galleryCategories || [];
+  return [
+    { value: 'all', nameKey: 'allCategories', icon: 'mdi-view-grid' },
+    ...data.map(cat => ({
+      value: cat.slug || cat.id,
+      nameKey: cat.name.toLowerCase().replace(/\s+/g, ''),
+      icon: 'mdi-view-grid'
+    }))
+  ];
+});
 
-// Gallery items - Dynamic loading from API
-const allItems = ref([]);
+// GraphQL Query for gallery items
+const { 
+  result: itemsResult, 
+  loading, 
+  error: itemsError,
+  refetch: refetchGalleryItems 
+} = useQuery(GALLERY_ITEMS_QUERY, {
+  first: 100
+});
 
-const fetchGalleryItems = async () => {
-  loading.value = true;
-  try {
-    const response = await fetch('/api/gallery/items');
-    if (response.ok) {
-      const data = await response.json();
-      allItems.value = data.map(item => ({
-        id: item.id,
-        titleKey: item.title_key,
-        descKey: item.desc_key,
-        category: item.category?.value || 'furniture',
-        categoryKey: item.category?.name_key || 'furniture',
-        image: item.image_url || 'https://i.postimg.cc/Qx9tkDDn/wardrobe.png',
-        title: item.title,
-        description: item.description
-      }));
-    } else {
-      // If API fails, use fallback data
-      setFallbackItems();
-    }
-  } catch (error) {
-    console.error('Failed to fetch gallery items:', error);
+// Computed property for gallery items
+const allItems = computed(() => {
+  if (itemsError.value) {
+    console.error('GraphQL Error fetching gallery items:', itemsError.value);
     // Fallback to static data
-    setFallbackItems();
-  } finally {
-    loading.value = false;
+    return getFallbackItems();
   }
-};
+  
+  const data = itemsResult.value?.galleryItems?.edges?.map(edge => ({
+    id: edge.node.id,
+    titleKey: edge.node.title.toLowerCase().replace(/\s+/g, ''),
+    descKey: edge.node.description ? edge.node.description.toLowerCase().replace(/\s+/g, '') : 'galleryItemDesc',
+    category: edge.node.category?.slug || 'furniture',
+    categoryKey: edge.node.category?.name?.toLowerCase().replace(/\s+/g, '') || 'furniture',
+    image: edge.node.image || 'https://i.postimg.cc/Qx9tkDDn/wardrobe.png',
+    title: edge.node.title,
+    description: edge.node.description
+  })) || [];
+  
+  return data.length > 0 ? data : getFallbackItems();
+});
 
-// Helper function to set fallback items
-const setFallbackItems = () => {
-  allItems.value = [
+// Helper function to get fallback items
+const getFallbackItems = () => {
+  return [
     {
       id: 1,
       titleKey: 'galleryItem1Title',
@@ -389,11 +394,8 @@ const getCategoryIcon = (category) => {
 };
 
 // Lifecycle
-onMounted(async () => {
-  await Promise.all([
-    fetchCategories(),
-    fetchGalleryItems()
-  ]);
+onMounted(() => {
+  // GraphQL queries will automatically fetch on mount
 });
 
 // Watchers

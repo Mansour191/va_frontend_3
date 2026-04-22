@@ -1,4 +1,6 @@
 // Global API Error Logger - Logs all API errors to terminal
+import { safeJSONParse, safeJSONStringify } from '@/shared/utils/safeParser.js';
+
 class ApiErrorLogger {
   constructor() {
     this.isEnabled = true;
@@ -104,11 +106,11 @@ class ApiErrorLogger {
   // Store errors in localStorage for debugging
   storeError(errorInfo) {
     try {
-      const errors = JSON.parse(localStorage.getItem('api_errors') || '[]');
+      const errors = safeJSONParse(localStorage.getItem('api_errors'), [], 'ApiErrorLogger.js:storeError');
       errors.unshift(errorInfo);
       // Keep only last 50 errors
       if (errors.length > 50) errors.pop();
-      localStorage.setItem('api_errors', JSON.stringify(errors));
+      localStorage.setItem('api_errors', safeJSONStringify(errors, '[]', 'ApiErrorLogger.js:storeError'));
     } catch (e) {
       console.warn('Failed to store error:', e);
     }
@@ -175,11 +177,7 @@ class ApiErrorLogger {
 
   // Get stored errors
   getStoredErrors() {
-    try {
-      return JSON.parse(localStorage.getItem('api_errors') || '[]');
-    } catch (e) {
-      return [];
-    }
+    return safeJSONParse(localStorage.getItem('api_errors'), [], 'ApiErrorLogger.js:getStoredErrors');
   }
 
   // Clear stored errors

@@ -60,28 +60,25 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useQuery } from '@vue/apollo-composable';
+import { FAQ_ITEMS_QUERY } from '@/integration/graphql/common.graphql';
 
 const { t } = useI18n();
 
-// FAQ Items - Dynamic loading from API
-const faqItems = ref([]);
+// GraphQL Query for FAQ items
+const { 
+  result: faqResult, 
+  error: faqError 
+} = useQuery(FAQ_ITEMS_QUERY);
 
-const fetchFAQItems = async () => {
-  try {
-    const response = await fetch('/api/faq/items');
-    if (response.ok) {
-      const data = await response.json();
-      faqItems.value = data.map(item => ({
-        question: item.question,
-        answer: item.answer
-      }));
-    }
-  } catch (error) {
-    console.error('Failed to fetch FAQ items:', error);
+// Computed property for FAQ items
+const faqItems = computed(() => {
+  if (faqError.value) {
+    console.error('GraphQL Error fetching FAQ items:', faqError.value);
     // Fallback to static data
-    faqItems.value = [
+    return [
       {
         question: t('faq1Q') || 'هل يمكنني طلب مقاسات مخصصة غير الموجودة في الموقع؟',
         answer: t('faq1A') || 'نعم بكل تأكيد! يمكنك إدخال المقاسات التي تناسب مساحتك (الطول والعرض) في صفحة تفاصيل المنتج، وسيتم حساب السعر تلقائياً.'
@@ -104,11 +101,17 @@ const fetchFAQItems = async () => {
       }
     ];
   }
-};
+  
+  const data = faqResult.value?.faqItems || [];
+  return data.map(item => ({
+    question: item.question,
+    answer: item.answer
+  }));
+});
 
 // Lifecycle
 onMounted(() => {
-  fetchFAQItems();
+  // GraphQL query will automatically fetch on mount
 });
 </script>
 

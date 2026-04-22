@@ -1,0 +1,259 @@
+import { gql } from '@apollo/client/core';
+
+// Get all blog posts
+export const BLOG_POSTS_QUERY = gql`
+  query GetBlogPosts($first: Int, $after: String, $category: String) {
+    blogPosts(first: $first, after: $after, category: $category) {
+      edges {
+        node {
+          id
+          title
+          excerpt
+          imageUrl
+          content
+          createdAt
+          updatedAt
+          views
+          commentsCount
+          category {
+            id
+            name
+            value
+          }
+          author {
+            id
+            name
+            username
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+`;
+
+// Get blog post by ID
+export const BLOG_POST_QUERY = gql`
+  query GetBlogPost($id: ID!) {
+    blogPost(id: $id) {
+      id
+      title
+      excerpt
+      imageUrl
+      content
+      createdAt
+      updatedAt
+      views
+      commentsCount
+      category {
+        id
+        name
+        value
+      }
+      author {
+        id
+        name
+        username
+      }
+    }
+  }
+`;
+
+// Get blog posts by category
+export const BLOG_POSTS_BY_CATEGORY_QUERY = gql`
+  query GetBlogPostsByCategory($categoryValue: String!, $first: Int, $after: String) {
+    blogPostsByCategory(categoryValue: $categoryValue, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          title
+          excerpt
+          imageUrl
+          content
+          createdAt
+          updatedAt
+          views
+          commentsCount
+          category {
+            id
+            name
+            value
+          }
+          author {
+            id
+            name
+            username
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+`;
+
+// Search blog posts
+export const SEARCH_BLOG_POSTS_QUERY = gql`
+  query SearchBlogPosts($searchTerm: String!, $first: Int, $after: String) {
+    searchBlogPosts(searchTerm: $searchTerm, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          title
+          excerpt
+          imageUrl
+          content
+          createdAt
+          updatedAt
+          views
+          commentsCount
+          category {
+            id
+            name
+            value
+          }
+          author {
+            id
+            name
+            username
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+`;
+
+// Create blog post mutation (admin only)
+export const CREATE_BLOG_POST_MUTATION = gql`
+  mutation CreateBlogPost(
+    $title: String!
+    $excerpt: String!
+    $content: String!
+    $imageUrl: String
+    $categoryId: ID
+    $authorId: ID
+  ) {
+    createBlogPost(
+      title: $title
+      excerpt: $excerpt
+      content: $content
+      imageUrl: $imageUrl
+      categoryId: $categoryId
+      authorId: $authorId
+    ) {
+      success
+      message
+      blogPost {
+        id
+        title
+        excerpt
+        imageUrl
+        content
+        createdAt
+        updatedAt
+        views
+        commentsCount
+        category {
+          id
+          name
+          value
+        }
+        author {
+          id
+          name
+          username
+        }
+      }
+    }
+  }
+`;
+
+// Update blog post mutation (admin only)
+export const UPDATE_BLOG_POST_MUTATION = gql`
+  mutation UpdateBlogPost(
+    $id: ID!
+    $title: String
+    $excerpt: String
+    $content: String
+    $imageUrl: String
+    $categoryId: ID
+  ) {
+    updateBlogPost(
+      id: $id
+      title: $title
+      excerpt: $excerpt
+      content: $content
+      imageUrl: $imageUrl
+      categoryId: $categoryId
+    ) {
+      success
+      message
+      blogPost {
+        id
+        title
+        excerpt
+        imageUrl
+        content
+        createdAt
+        updatedAt
+        views
+        commentsCount
+        category {
+          id
+          name
+          value
+        }
+        author {
+          id
+          name
+          username
+        }
+      }
+    }
+  }
+`;
+
+// Delete blog post mutation (admin only)
+export const DELETE_BLOG_POST_MUTATION = gql`
+  mutation DeleteBlogPost($id: ID!) {
+    deleteBlogPost(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
+// Increment blog post views mutation
+export const INCREMENT_BLOG_POST_VIEWS_MUTATION = gql`
+  mutation IncrementBlogPostViews($id: ID!) {
+    incrementBlogPostViews(id: $id) {
+      success
+      message
+      blogPost {
+        id
+        views
+      }
+    }
+  }
+`;

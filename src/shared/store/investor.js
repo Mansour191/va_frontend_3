@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { safeJSONParse } from '@/shared/utils/safeParser.js';
 
 export const useInvestorStore = defineStore('investor', {
   state: () => ({
@@ -7,7 +8,7 @@ export const useInvestorStore = defineStore('investor', {
       { id: 2, title: 'أسود ملكي مطفي', image: 'https://i.postimg.cc/7L0DfPgY/Entrance1.png', votes: 8, description: 'رخام أسود فخم بلمسة مطفية عصرية' },
       { id: 3, title: 'ذهبي كلاسيكي', image: 'https://i.postimg.cc/htCcH3cZ/table1.png', votes: 15, description: 'تصميم يجمع بين بياض الثلج وعروق الذهب' },
     ],
-    votedDesignIds: JSON.parse(localStorage.getItem('votedDesignIds')) || [],
+    votedDesignIds: safeJSONParse(localStorage.getItem('votedDesignIds'), [], 'investor.js'),
     kpis: {
       salesGrowth: 25,
       catalogProgress: 38, // Target 50

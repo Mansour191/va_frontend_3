@@ -297,21 +297,30 @@ class PaymentService {
     }
 
     try {
-      const url = `${this.apiEndpoint}/methods/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const query = `
+        query {
+          myPaymentMethods {
+            id
+            type
+            title
+            isDefault
+            cardholderName
+            last4
+            expiryMonth
+            expiryYear
+            bankName
+            accountName
+            accountNumber
+            iban
+            walletProvider
+            phoneNumber
+            createdAt
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const methods = this._transformPaymentMethods(data);
+      const response = await this._makeGraphQLRequest(query);
+      const methods = this._transformPaymentMethods(response.myPaymentMethods || []);
       
       this._setCache(cacheKey, methods);
       return methods;
@@ -328,27 +337,47 @@ class PaymentService {
    */
   async createPaymentMethod(methodData) {
     try {
-      const url = `${this.apiEndpoint}/methods/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._preparePaymentMethodData(methodData))
-      });
+      const mutation = `
+        mutation CreatePaymentMethod($input: PaymentMethodInput!) {
+          createPaymentMethod(input: $input) {
+            success
+            message
+            paymentMethod {
+              id
+              type
+              title
+              isDefault
+              cardholderName
+              last4
+              expiryMonth
+              expiryYear
+              bankName
+              accountName
+              accountNumber
+              iban
+              walletProvider
+              phoneNumber
+              createdAt
+            }
+            errors
+          }
+        }
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = {
+        input: this._preparePaymentMethodData(methodData)
+      };
+
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.createPaymentMethod.success) {
+        // Clear cache to force refresh
+        this.cache.delete('payment_methods');
+        
+        return this._transformPaymentMethod(response.createPaymentMethod.paymentMethod);
+      } else {
+        throw new Error(response.createPaymentMethod.message || 'Failed to create payment method');
       }
-
-      const data = await response.json();
-      const method = this._transformPaymentMethod(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('payment_methods');
-      
-      return method;
     } catch (error) {
       console.error('❌ Error creating payment method:', error);
       throw error;
@@ -363,27 +392,48 @@ class PaymentService {
    */
   async updatePaymentMethod(id, methodData) {
     try {
-      const url = `${this.apiEndpoint}/methods/${id}/`;
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._preparePaymentMethodData(methodData))
-      });
+      const mutation = `
+        mutation UpdatePaymentMethod($id: ID!, $input: PaymentMethodInput!) {
+          updatePaymentMethod(id: $id, input: $input) {
+            success
+            message
+            paymentMethod {
+              id
+              type
+              title
+              isDefault
+              cardholderName
+              last4
+              expiryMonth
+              expiryYear
+              bankName
+              accountName
+              accountNumber
+              iban
+              walletProvider
+              phoneNumber
+              createdAt
+            }
+            errors
+          }
+        }
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = {
+        id,
+        input: this._preparePaymentMethodData(methodData)
+      };
+
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.updatePaymentMethod.success) {
+        // Clear cache to force refresh
+        this.cache.delete('payment_methods');
+        
+        return this._transformPaymentMethod(response.updatePaymentMethod.paymentMethod);
+      } else {
+        throw new Error(response.updatePaymentMethod.message || 'Failed to update payment method');
       }
-
-      const data = await response.json();
-      const method = this._transformPaymentMethod(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('payment_methods');
-      
-      return method;
     } catch (error) {
       console.error('❌ Error updating payment method:', error);
       throw error;
@@ -397,22 +447,27 @@ class PaymentService {
    */
   async deletePaymentMethod(id) {
     try {
-      const url = `${this.apiEndpoint}/methods/${id}/`;
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`
+      const mutation = `
+        mutation DeletePaymentMethod($id: ID!) {
+          deletePaymentMethod(id: $id) {
+            success
+            message
+            errors
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = { id };
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.deletePaymentMethod.success) {
+        // Clear cache to force refresh
+        this.cache.delete('payment_methods');
+        
+        return true;
+      } else {
+        throw new Error(response.deletePaymentMethod.message || 'Failed to delete payment method');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('payment_methods');
-      
-      return true;
     } catch (error) {
       console.error('❌ Error deleting payment method:', error);
       throw error;
@@ -426,23 +481,33 @@ class PaymentService {
    */
   async setDefaultPaymentMethod(id) {
     try {
-      const url = `${this.apiEndpoint}/methods/${id}/set-default/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const mutation = `
+        mutation SetDefaultPaymentMethod($id: ID!) {
+          setDefaultPaymentMethod(id: $id) {
+            success
+            message
+            paymentMethod {
+              id
+              type
+              title
+              isDefault
+            }
+            errors
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = { id };
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.setDefaultPaymentMethod.success) {
+        // Clear cache to force refresh
+        this.cache.delete('payment_methods');
+        
+        return true;
+      } else {
+        throw new Error(response.setDefaultPaymentMethod.message || 'Failed to set default payment method');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('payment_methods');
-      
-      return true;
     } catch (error) {
       console.error('❌ Error setting default payment method:', error);
       throw error;

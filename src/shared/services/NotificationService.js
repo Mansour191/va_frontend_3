@@ -231,19 +231,21 @@ class NotificationService {
    */
   async sendToBackend(notification) {
     try {
-      // This would send to your backend API
-      const response = await fetch('/api/notifications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getAuthToken()}`
-        },
-        body: JSON.stringify(notification)
-      });
+      const { SEND_NOTIFICATION_MUTATION } = await import('@/integration/graphql/notifications.graphql');
+      const { useMutation } = await import('@apollo/client');
       
-      if (!response.ok) {
-        console.warn('Failed to save notification to backend');
-      }
+      const { mutate } = useMutation(SEND_NOTIFICATION_MUTATION);
+      
+      await mutate({
+        variables: {
+          input: {
+            title: notification.title,
+            message: notification.message,
+            type: notification.type,
+            userId: notification.userId
+          }
+        }
+      });
     } catch (error) {
       console.warn('Error sending notification to backend:', error);
     }
@@ -310,15 +312,15 @@ class NotificationService {
     // Poll for new notifications every 30 seconds
     setInterval(async () => {
       try {
-        const response = await fetch('/api/notifications/unread', {
-          headers: {
-            'Authorization': `Bearer ${this.getAuthToken()}`
-          }
+        const { GET_UNREAD_NOTIFICATIONS_QUERY } = await import('@/integration/graphql/notifications.graphql');
+        const { useQuery } = await import('@apollo/client');
+        
+        const { data, error } = await useQuery(GET_UNREAD_NOTIFICATIONS_QUERY, {
+          variables: { userId: this.getCurrentUserId() }
         });
         
-        if (response.ok) {
-          const newNotifications = await response.json();
-          newNotifications.forEach(notification => {
+        if (data.value && !error.value) {
+          data.value.unreadNotifications.forEach(notification => {
             this.create(notification);
           });
         }
@@ -373,7 +375,6 @@ export default notificationService;
 export { 
   notifications, 
   unreadCount, 
-  NOTIFICATION_TYPES 
 };
 
 // Auto-request browser permission

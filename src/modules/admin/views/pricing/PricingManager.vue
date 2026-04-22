@@ -481,8 +481,16 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import Chart from 'chart.js/auto';
-import PricingRulesService from '@/services/PricingRulesService';
-import PricingService from '@/services/PricingService';
+import { useQuery, useMutation } from '@apollo/client';
+import { 
+  GET_PRICING_RULES_QUERY,
+  CREATE_PRICING_RULE_MUTATION,
+  UPDATE_PRICING_RULE_MUTATION,
+  DELETE_PRICING_RULE_MUTATION,
+  TEST_PRICING_RULE_MUTATION,
+  GET_PRICING_ANALYTICS_QUERY,
+  RUN_PRICING_OPTIMIZATION_MUTATION
+} from '@/integration/graphql/pricing.graphql';
 import AIService from '@/services/AIService';
 import ERPNextService from '@/services/ERPNextService';
 import DashboardService from '@/services/DashboardService';
@@ -582,16 +590,18 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
+const { result: pricingRulesResult, error: pricingRulesError, refetch: refetchPricingRules } = useQuery(GET_PRICING_RULES_QUERY);
+
 const loadPricingRules = async () => {
   try {
-    const response = await PricingRulesService.getPricingRules();
-    if (response.success) {
-      pricingRules.value = response.data.rules || [];
+    if (pricingRulesResult.value && !pricingRulesError.value) {
+      pricingRules.value = pricingRulesResult.value.pricingRules || [];
     } else {
-      pricingRules.value = response.mockData?.rules || [];
+      await refetchPricingRules();
     }
   } catch (error) {
     console.error('Error loading pricing rules:', error);
+    pricingRules.value = getMockRules(); // Use fallback data
     store.dispatch('notifications/showNotification', {
       type: 'error',
       message: t('pricing.manager.loadRulesError', 'فشل في تحميل قواعد التسعير')
@@ -613,6 +623,8 @@ const loadAvailableProducts = async () => {
   }
 };
 
+const { mutate: testPricingRule } = useMutation(TEST_PRICING_RULE_MUTATION);
+
 const runPriceTest = async () => {
   if (!testConfig.value.productId) {
     store.dispatch('notifications/showNotification', {
@@ -624,13 +636,15 @@ const runPriceTest = async () => {
 
   try {
     testLoading.value = true;
-    const response = await PricingRulesService.testPricingRule(
-      { type: testConfig.value.testType, period: testConfig.value.period },
-      testConfig.value.productId
-    );
+    const response = await testPricingRule({
+      variables: {
+        rule: { type: testConfig.value.testType, period: testConfig.value.period },
+        productId: testConfig.value.productId
+      }
+    });
     
-    if (response.success) {
-      testResults.value = response.data;
+    if (response.data?.testPricingRule?.success) {
+      testResults.value = response.data.testPricingRule;
     } else {
       testResults.value = getMockTestResults();
     }
@@ -648,9 +662,11 @@ const runPriceTest = async () => {
   }
 };
 
+const { mutate: runPricingOptimizationMutation } = useMutation(RUN_PRICING_OPTIMIZATION_MUTATION);
+
 const runPricingOptimization = async () => {
   try {
-    const response = await PricingRulesService.runPricingOptimization();
+    const response = await runPricingOptimizationMutation();
     await loadAnalytics();
     
     store.dispatch('notifications/showNotification', {
@@ -685,21 +701,20 @@ const generateAIInsights = async () => {
   }
 };
 
+const { result: analyticsResult, refetch: refetchAnalytics } = useQuery(GET_PRICING_ANALYTICS_QUERY, {
+  variables: { period: analyticsPeriod.value }
+});
+
 const loadAnalytics = async () => {
   try {
-    const response = await PricingRulesService.getPricingAnalytics({
-      period: analyticsPeriod.value
-    });
-    
-    if (response.success) {
+    if (analyticsResult.value && !analyticsResult.error.value) {
       await nextTick();
-      updateCharts(response.data);
+      updateCharts(analyticsResult.value.pricingAnalytics);
     } else {
-      await nextTick();
-      updateCharts(response.mockData || getMockChartData());
+      await refetchAnalytics({ period: analyticsPeriod.value });
     }
     
-    console.log('Pricing analytics loaded:', response);
+    console.log('Pricing analytics loaded:', analyticsResult.value);
   } catch (error) {
     console.error('Error loading analytics:', error);
     await nextTick();
@@ -853,13 +868,15 @@ const editRule = (rule) => {
   showEditRuleModal.value = true;
 };
 
+const { mutate: deletePricingRule } = useMutation(DELETE_PRICING_RULE_MUTATION);
+
 const deleteRule = async (ruleId) => {
   if (!confirm(t('pricing.manager.deleteConfirm', 'هل أنت متأكد من حذف هذه القاعدة؟'))) return;
   
   try {
-    const response = await PricingRulesService.deletePricingRule(ruleId);
-    if (response.success) {
-      await loadPricingRules();
+    const response = await deletePricingRule({ variables: { id: ruleId } });
+    if (response.data?.deletePricingRule?.success) {
+      await refetchPricingRules();
       store.dispatch('notifications/showNotification', {
         type: 'success',
         message: t('pricing.manager.deleteSuccess', 'تم حذف القاعدة بنجاح')
@@ -874,11 +891,13 @@ const deleteRule = async (ruleId) => {
   }
 };
 
+const { mutate: createPricingRule } = useMutation(CREATE_PRICING_RULE_MUTATION);
+
 const handleRuleCreated = async (rule) => {
   try {
-    const response = await PricingRulesService.createPricingRule(rule);
-    if (response.success) {
-      await loadPricingRules();
+    const response = await createPricingRule({ variables: { input: rule } });
+    if (response.data?.createPricingRule?.success) {
+      await refetchPricingRules();
       showCreateRuleModal.value = false;
       store.dispatch('notifications/showNotification', {
         type: 'success',
@@ -894,11 +913,15 @@ const handleRuleCreated = async (rule) => {
   }
 };
 
+const { mutate: updatePricingRule } = useMutation(UPDATE_PRICING_RULE_MUTATION);
+
 const handleRuleUpdated = async (rule) => {
   try {
-    const response = await PricingRulesService.updatePricingRule(rule.id, rule);
-    if (response.success) {
-      await loadPricingRules();
+    const response = await updatePricingRule({ 
+      variables: { id: rule.id, input: rule } 
+    });
+    if (response.data?.updatePricingRule?.success) {
+      await refetchPricingRules();
       showEditRuleModal.value = false;
       store.dispatch('notifications/showNotification', {
         type: 'success',

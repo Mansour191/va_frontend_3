@@ -19,13 +19,15 @@ import ChatService from '@/shared/integration/services/ChatService'
 import AILearningService, { initializeLearningSystem } from '@/shared/services/AILearningService.js';
 import apiErrorLogger from '@/shared/services/http/ApiErrorLogger.js'
 import { httpClient } from '@/shared/services/http/HttpClient.js'
+import MemoryManager from '@/shared/utils/MemoryManager.js'
 
 // Import new plugins - with conditional loading to prevent duplicates
 import PrimeVuePlugin from '@/shared/plugins/primevue'
 import VueUsePlugin from '@/shared/plugins/vueuse'
 // Note: Motion and AutoAnimate are handled by VueUse plugin to avoid duplicates
-import { ApolloPlugin, client } from '@/shared/plugins/apolloPlugin'
-import { DefaultApolloClient, provideApolloClient } from '@vue/apollo-composable'
+// Import Apollo Client
+import { client } from '@/shared/plugins/apolloPlugin'
+import { DefaultApolloClient } from '@vue/apollo-composable'
 
 // Import icons
 import '@fortawesome/fontawesome-free/css/all.min.css'
@@ -41,6 +43,9 @@ const app = createApp({
   ...App
 })
 const pinia = createPinia()
+
+// Install Pinia FIRST before any store usage
+app.use(pinia)
 
 // Initialize theme system first
 import { useTheme } from '@/composables/useTheme';
@@ -61,7 +66,6 @@ app.config.errorHandler = (err, instance, info) => {
 }
 
 // Install plugins in correct order - REMOVE DUPLICATE MOTION PLUGIN
-app.use(pinia)
 app.use(store)
 
 // Router with error handling
@@ -101,6 +105,7 @@ console.log('ℹ️ Motion plugin handled by VueUse plugin, skipping duplicate i
 console.log('ℹ️ AutoAnimate plugin handled by VueUse plugin, skipping duplicate installation')
 
 // Apollo Client is provided via setup, no need for ApolloPlugin
+console.log('✅ Apollo Client configured with environment variables')
 
 // Initialize auth store after all plugins are installed
 const authStore = useAuthStore()
@@ -109,9 +114,7 @@ authStore.initializeAuth()
 // Initialize theme
 const { initTheme } = useTheme()
 
-// Provide Apollo Client globally for services outside Vue setup
-console.log('🔗 Providing Apollo Client globally...');
-provideApolloClient(client);
+// Apollo Client is already provided globally via setup()
 
 // Make Apollo Client available globally and emit ready event
 window.__APOLLO_CLIENT__ = client;
@@ -120,7 +123,6 @@ window.__APOLLO_CLIENT__ = client;
 setTimeout(() => {
   console.log('✅ Apollo Client is ready and provided globally');
   
-  // Use simple window.dispatchEvent - no custom event objects
   window.dispatchEvent(new CustomEvent('apollo-client-ready', { 
     detail: { client } 
   }));
@@ -132,26 +134,22 @@ const mountedApp = app.mount('#app')
 // Initialize theme after mounting
 initTheme()
 
-// Initialize AI Services after Apollo is ready - EVENT-BASED APPROACH
+// Initialize AI Services after Apollo is ready
 const initializeAIServices = () => {
   console.log('🔍 Initializing AI Services after Apollo ready...');
   
-  // Initialize AI services that depend on Apollo
   try {
-    // These will now wait for the Apollo ready event
     import('@/shared/services/ai/AIMonitorService').then(module => {
       const AIMonitorService = module.default;
-      // Service will auto-start when Apollo is ready
     });
   } catch (error) {
     console.error('❌ Failed to initialize AI services:', error);
   }
 };
 
-// Start AI services initialization (only once)
 initializeAIServices();
 
-// Initialize AI Learning System - Prevent duplicate initialization
+// Initialize AI Learning System
 console.log('🎓 Starting AI Learning System...')
 if (!AILearningService.isInitialized) {
   initializeLearningSystem().then(() => {
@@ -162,5 +160,9 @@ if (!AILearningService.isInitialized) {
 } else {
   console.log('ℹ️ AI Learning System Already Initialized')
 }
+
+// Initialize Memory Manager for 4GB RAM systems
+console.log('🧹 Initializing Memory Manager...')
+MemoryManager.init();
 
 console.log('🎬 Vynil Art Application Started Successfully!')

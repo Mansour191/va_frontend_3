@@ -120,77 +120,75 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useQuery } from '@vue/apollo-composable';
+import { USER_GUIDE_STEPS_QUERY, TUTORIALS_QUERY } from '@/integration/graphql/common.graphql';
 
 const { t } = useI18n();
 
-// User Guide Steps - Dynamic loading from API
-const steps = ref([]);
+// GraphQL Queries for user guide data
+const { 
+  result: userGuideResult, 
+  loading: stepsLoading, 
+  error: stepsError 
+} = useQuery(USER_GUIDE_STEPS_QUERY, {}, {
+  cachePolicy: 'cache-first',
+  errorPolicy: 'all'
+});
 
-const fetchUserGuideSteps = async () => {
-  try {
-    const response = await fetch('/api/user-guide/steps');
-    if (response.ok) {
-      const data = await response.json();
-      steps.value = data.map(step => ({
-        icon: step.icon || 'mdi-help-circle',
-        title: step.title,
-        desc: step.description
-      }));
-    }
-  } catch (error) {
-    console.error('Failed to fetch user guide steps:', error);
-    // Fallback to static data
-    steps.value = [
-      { icon: 'mdi-account-plus', title: 'إنشاء حساب', desc: 'قم بإنشاء حسابك لتتبع طلباتك والحصول على خصومات حصرية.' },
-      { icon: 'mdi-magnify', title: 'تصفح التصاميم', desc: 'استخدم محرك البحث المتقدم للعثور على ما يناسب ذوقك.' },
-      { icon: 'mdi-pencil-ruler', title: 'التخصيص', desc: 'أدخل مقاساتك الخاصة واختر الألوان المناسبة لمساحتك.' }
-    ];
+const { 
+  result: tutorialsResult, 
+  loading: tutorialsLoading, 
+  error: tutorialsError 
+} = useQuery(TUTORIALS_QUERY, {}, {
+  cachePolicy: 'cache-first',
+  errorPolicy: 'all'
+});
+
+// Computed properties for reactive data
+const steps = computed(() => {
+  if (userGuideResult.value?.userGuideSteps) {
+    return userGuideResult.value.userGuideSteps.map(step => ({
+      icon: step.icon || 'mdi-help-circle',
+      title: step.title,
+      desc: step.description
+    }));
   }
-};
+  
+  // Fallback to static data
+  return [
+    { icon: 'mdi-account-plus', title: 'إنشاء حساب', desc: 'قم بإنشاء حسابك لتتبع طلباتك والحصول على خصومات حصرية.' },
+    { icon: 'mdi-magnify', title: 'تصفح التصاميم', desc: 'استخدم محرك البحث المتقدم للعثور على ما يناسب ذوقك.' },
+    { icon: 'mdi-pencil-ruler', title: 'التخصيص', desc: 'أدخل مقاساتك الخاصة واختر الألوان المناسبة لمساحتك.' }
+  ];
+});
 
-// Tutorials - Dynamic loading from API
-const tutorials = ref([]);
-
-const fetchTutorials = async () => {
-  try {
-    const response = await fetch('/api/user-guide/tutorials');
-    if (response.ok) {
-      const data = await response.json();
-      tutorials.value = data.map(tutorial => ({
-        title: tutorial.title,
-        desc: tutorial.description,
-        thumbnail: tutorial.thumbnail_url || 'https://i.postimg.cc/0QKmBBJ9/kitchen2.png',
-        embedUrl: tutorial.embed_url || 'https://www.youtube.com/embed/dQw4w9WgXcQ'
-      }));
-    }
-  } catch (error) {
-    console.error('Failed to fetch tutorials:', error);
-    // Fallback to static data
-    tutorials.value = [
-      { 
-        title: 'كيفية أخذ المقاسات بدقة', 
-        desc: 'تعلم الطريقة الصحيحة لقياس الجدران والأسطح لتجنب أي أخطاء في الطلب.',
-        thumbnail: 'https://i.postimg.cc/0QKmBBJ9/kitchen2.png',
-        embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ'
-      },
-      { 
-        title: 'طريقة تركيب الفينيل المخصص', 
-        desc: 'خطوات بسيطة وسهلة لتركيب ملصقات الفينيل على الجدران دون فقاعات هواء.',
-        thumbnail: 'https://i.postimg.cc/htCcH3cZ/table1.png',
-        embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ'
-      }
-    ];
+const tutorials = computed(() => {
+  if (tutorialsResult.value?.tutorials) {
+    return tutorialsResult.value.tutorials.map(tutorial => ({
+      title: tutorial.title,
+      desc: tutorial.description,
+      thumbnail: tutorial.thumbnail || 'https://i.postimg.cc/0QKmBBJ9/kitchen2.png',
+      embedUrl: tutorial.videoUrl || 'https://www.youtube.com/embed/dQw4w9WgXcQ'
+    }));
   }
-};
-
-// Lifecycle
-onMounted(async () => {
-  await Promise.all([
-    fetchUserGuideSteps(),
-    fetchTutorials()
-  ]);
+  
+  // Fallback to static data
+  return [
+    { 
+      title: 'كيفية أخذ المقاسات بدقة', 
+      desc: 'تعلم الطريقة الصحيحة لقياس الجدران والأسطح لتجنب أي أخطاء في الطلب.',
+      thumbnail: 'https://i.postimg.cc/0QKmBBJ9/kitchen2.png',
+      embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ'
+    },
+    { 
+      title: 'طريقة تركيب الفينيل المخصص', 
+      desc: 'خطوات بسيطة وسهلة لتركيب ملصقات الفينيل على الجدران دون فقاعات هواء.',
+      thumbnail: 'https://i.postimg.cc/htCcH3cZ/table1.png',
+      embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ'
+    }
+  ];
 });
 </script>
 

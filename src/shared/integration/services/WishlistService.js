@@ -77,15 +77,7 @@ const GET_MY_WISHLIST = gql`
     myWishlist {
       id
       product {
-        id
-        name_ar
-        name_en
-        slug
-        base_price
-        stock
-        is_active
-        on_sale
-        discount_percent
+        ...ProductEssential
         images {
           id
           image_url
@@ -102,6 +94,16 @@ const GET_MY_WISHLIST = gql`
       savingsAmount
       daysInWishlist
     }
+  }
+  fragment ProductEssential on Product {
+    id
+    nameAr
+    nameEn
+    slug
+    basePrice
+    onSale
+    discountPercent
+    isActive
   }
 `;
 

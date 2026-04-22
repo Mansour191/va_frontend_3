@@ -209,21 +209,21 @@ const loadDesigns = async () => {
         id: 1,
         title: t('design1Title') || 'تصميم جدران عصري',
         description: t('design1Desc') || 'تصميم مبتكر يجمع بين الفن الحديث والتراث الجزائري',
-        image: '/api/placeholder/400/300',
+        image: '/placeholder-design-1.jpg',
         votes: 45
       },
       {
         id: 2,
         title: t('design2Title') || 'ملصقات أبواب كلاسيكية',
         description: t('design2Desc') || 'تصاميم كلاسيكية منقحة بلمسة عصرية',
-        image: '/api/placeholder/400/300',
+        image: '/placeholder-design-1.jpg',
         votes: 38
       },
       {
         id: 3,
         title: t('design3Title') || 'أثاث مبتكر',
         description: t('design3Desc') || 'تصاميم أثاث فريدة تجمع بين الجمال والوظيفة',
-        image: '/api/placeholder/400/300',
+        image: '/placeholder-design-1.jpg',
         votes: 52
       }
     ];

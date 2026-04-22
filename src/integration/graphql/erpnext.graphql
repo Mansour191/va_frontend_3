@@ -1,0 +1,457 @@
+# ERPNext GraphQL Schema
+# Comprehensive schema for ERPNext synchronization operations
+
+# ========== FRAGMENTS ==========
+
+fragment SyncStatusFields on ERPNextSyncStatus {
+  id
+  status
+  message
+  recordsSynced
+  errorMessage
+  timestamp
+  isRunning
+  statistics {
+    totalSyncs
+    successfulSyncs
+    failedSyncs
+    successRate
+  }
+}
+
+# ========== QUERIES ==========
+
+query GetERPNextProducts($filters: ERPNextFilters) {
+  erpnextProducts(filters: $filters) {
+    id
+    name
+    itemName
+    description
+    itemCode
+    itemGroup
+    brand
+    stock
+    rate
+    standardRate
+    image
+    isActive
+    createdAt
+    updatedAt
+  }
+}
+
+query GetERPNextCustomers($filters: ERPNextFilters) {
+  erpnextCustomers(filters: $filters) {
+    id
+    name
+    customerName
+    email
+    phone
+    mobileNo
+    customerGroup
+    territory
+    customerType
+    isActive
+    createdAt
+    updatedAt
+  }
+}
+
+query GetERPNextSalesOrders($filters: ERPNextFilters) {
+  erpnextSalesOrders(filters: $filters) {
+    id
+    name
+    orderNumber
+    customer
+    customerName
+    orderDate
+    deliveryDate
+    status
+    grandTotal
+    total
+    netTotal
+    items {
+      itemName
+      qty
+      rate
+      amount
+    }
+    createdAt
+    updatedAt
+  }
+}
+
+query GetERPNextVersions {
+  erpnextVersions {
+    version
+    build
+    branch
+    timestamp
+    status
+  }
+}
+
+# ========== MUTATIONS ==========
+
+mutation SyncERPNextData($syncType: String!, $options: SyncOptions) {
+  syncERPNextData(syncType: $syncType, options: $options) {
+    success
+    message
+    syncId
+    status
+    progress {
+      current
+      total
+      percentage
+      stage
+    }
+    errors {
+      field
+      message
+      code
+    }
+    timestamp
+  }
+}
+
+mutation CancelSyncOperation($syncId: String!) {
+  cancelSyncOperation(syncId: $syncId) {
+    success
+    message
+    cancelledAt
+    syncId
+  }
+}
+
+mutation RetryFailedSync($syncId: String!) {
+  retryFailedSync(syncId: $syncId) {
+    success
+    message
+    syncId
+    retryCount
+    maxRetries
+    nextRetryAt
+  }
+}
+
+mutation SyncCustomerToERPNext($customerData: CustomerInput!) {
+  syncCustomerToERPNext(customerData: $customerData) {
+    success
+    message
+    customerId
+    erpnextCustomerId
+    errors {
+      field
+      message
+      code
+    }
+  }
+}
+
+mutation SyncOrderToERPNext($orderData: OrderInput!) {
+  syncOrderToERPNext(orderData: $orderData) {
+    success
+    message
+    orderId
+    erpnextOrderId
+    errors {
+      field
+      message
+      code
+    }
+  }
+}
+
+mutation SyncProductToERPNext($productData: ProductInput!) {
+  syncProductToERPNext(productData: $productData) {
+    success
+    message
+    productId
+    erpnextProductId
+    errors {
+      field
+      message
+      code
+    }
+  }
+}
+
+fragment SyncHistoryFields on ERPNextSyncHistory {
+  id
+  syncType
+  status
+  startTime
+  endTime
+  recordsProcessed
+  recordsSuccess
+  recordsFailed
+  errorMessage
+  duration
+  dryRun
+}
+
+fragment SyncReportFields on ERPNextSyncReport {
+  id
+  syncId
+  status
+  startTime
+  endTime
+  summary {
+    totalRecords
+    successfulRecords
+    failedRecords
+    skippedRecords
+  }
+  details {
+    entityType
+    processed
+    success
+    failed
+    errors
+  }
+  performance {
+    recordsPerSecond
+    averageProcessingTime
+    peakMemoryUsage
+  }
+}
+
+fragment SyncConfigFields on ERPNextSyncConfig {
+  id
+  autoSyncEnabled
+  syncInterval
+  syncTypes {
+    products
+    customers
+    orders
+    inventory
+    pricing
+  }
+  retrySettings {
+    maxRetries
+    retryDelay
+    backoffMultiplier
+  }
+  notifications {
+    emailEnabled
+    webhookUrl
+    notifyOnFailure
+    notifyOnSuccess
+  }
+  connectionSettings {
+    erpUrl
+    apiKey
+    timeout
+    batchSize
+  }
+}
+
+fragment ConnectionTestFields on ERPNextConnectionTest {
+  success
+  message
+  responseTime
+  apiVersion
+  availableModules
+  errorDetails {
+    code
+    message
+    field
+  }
+}
+
+# ========== QUERIES ==========
+
+query GetSyncStatus {
+  erpNextSyncStatus {
+    ...SyncStatusFields
+  }
+}
+
+query GetSyncHistory($limit: Int = 10, $offset: Int = 0, $status: String) {
+  erpNextSyncHistory(limit: $limit, offset: $offset, status: $status) {
+    ...SyncHistoryFields
+  }
+}
+
+query GetSyncReport($syncId: ID!) {
+  erpNextSyncReport(syncId: $syncId) {
+    ...SyncReportFields
+  }
+}
+
+query GetSyncConfiguration {
+  erpNextSyncConfig {
+    ...SyncConfigFields
+  }
+}
+
+query TestERPNextConnection {
+  erpNextConnectionTest {
+    ...ConnectionTestFields
+  }
+}
+
+query GetSyncMetrics {
+  erpNextSyncMetrics {
+    totalSyncs
+    successRate
+    averageRecordsPerSync
+    lastSyncTime
+    timeSinceLastSync
+    healthScore
+    recentPerformance {
+      date
+      successRate
+      recordsProcessed
+      duration
+    }
+  }
+}
+
+# ========== MUTATIONS ==========
+
+mutation TriggerManualSync($syncType: String!, $dryRun: Boolean = false) {
+  erpNextTriggerManualSync(syncType: $syncType, dryRun: $dryRun) {
+    success
+    message
+    syncId
+    estimatedDuration
+  }
+}
+
+mutation ScheduleAutoSync($interval: String!, $enabled: Boolean = true) {
+  erpNextScheduleAutoSync(interval: $interval, enabled: $enabled) {
+    success
+    message
+    scheduleId
+    nextSyncTime
+  }
+}
+
+mutation UpdateSyncConfiguration($config: ERPNextSyncConfigInput!) {
+  erpNextUpdateSyncConfig(config: $config) {
+    success
+    message
+    config {
+      ...SyncConfigFields
+    }
+  }
+}
+
+mutation CancelSync($syncId: ID!) {
+  erpNextCancelSync(syncId: $syncId) {
+    success
+    message
+    cancelledAt
+  }
+}
+
+mutation RetryFailedSync($syncId: ID!) {
+  erpNextRetryFailedSync(syncId: $syncId) {
+    success
+    message
+    newSyncId
+  }
+}
+
+mutation ResetSyncStatistics {
+  erpNextResetSyncStatistics {
+    success
+    message
+    resetAt
+  }
+}
+
+# ========== SUBSCRIPTIONS ==========
+
+subscription SyncStatusUpdated {
+  erpNextSyncStatusUpdated {
+    ...SyncStatusFields
+  }
+}
+
+subscription SyncProgressUpdated($syncId: ID!) {
+  erpNextSyncProgressUpdated(syncId: $syncId) {
+    syncId
+    progress {
+      current
+      total
+      percentage
+      currentEntity
+      estimatedTimeRemaining
+    }
+    status
+    message
+    timestamp
+  }
+}
+
+subscription SyncLogsUpdated {
+  erpNextSyncLogsUpdated {
+    id
+    syncId
+    level
+    message
+    timestamp
+    context {
+      entityType
+      entityId
+      operation
+    }
+  }
+}
+
+subscription SyncNotification {
+  erpNextSyncNotification {
+    id
+    type
+    title
+    message
+    severity
+    timestamp
+    actions {
+      label
+      action
+      url
+    }
+  }
+}
+
+# ========== INPUT TYPES ==========
+
+input ERPNextSyncConfigInput {
+  autoSyncEnabled: Boolean
+  syncInterval: String
+  syncTypes: ERPNextSyncTypesInput
+  retrySettings: ERPNextRetrySettingsInput
+  notifications: ERPNextNotificationsInput
+  connectionSettings: ERPNextConnectionSettingsInput
+}
+
+input ERPNextSyncTypesInput {
+  products: Boolean
+  customers: Boolean
+  orders: Boolean
+  inventory: Boolean
+  pricing: Boolean
+}
+
+input ERPNextRetrySettingsInput {
+  maxRetries: Int
+  retryDelay: Int
+  backoffMultiplier: Float
+}
+
+input ERPNextNotificationsInput {
+  emailEnabled: Boolean
+  webhookUrl: String
+  notifyOnFailure: Boolean
+  notifyOnSuccess: Boolean
+}
+
+input ERPNextConnectionSettingsInput {
+  erpUrl: String
+  apiKey: String
+  timeout: Int
+  batchSize: Int
+}

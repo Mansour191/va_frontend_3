@@ -3,8 +3,22 @@ import { createRouter, createWebHistory } from 'vue-router';
 import routes from './routes'; // استيراد المسارات من مجلد routes
 import { useStorage } from '@vueuse/core'
 import { useAuth } from '@/composables/useAuth'
+import { client } from '@/shared/plugins/apolloPlugin'
+import CacheManager from '@/shared/utils/cacheManager'
+import MemoryManager from '@/shared/utils/MemoryManager'
 
 console.log('📦 المسارات القادمة من routes:', routes);
+
+// Initialize cache manager
+let cacheManager = null
+
+// Initialize cache manager when Apollo client is ready
+const initializeCacheManager = () => {
+  if (client && !cacheManager) {
+    cacheManager = new CacheManager(client)
+    console.log('🗄️ Cache Manager initialized for router')
+  }
+}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -114,9 +128,32 @@ function getRoleBasedRedirect(role) {
 }
 
 // Navigation guard for route protection (additional layer)
-router.afterEach((to, from) => {
+router.afterEach(async (to, from) => {
+  // Initialize cache manager if not already done
+  initializeCacheManager()
+  
   // Log navigation for security auditing
   console.log(`📍 Navigation: ${from.path} → ${to.path}`)
+  
+  // NUCLEAR GC: Force global memory cleanup after each route change
+  try {
+    await MemoryManager.forceGlobalCleanup();
+    console.log('🧹 Nuclear GC completed after route change');
+  } catch (error) {
+    console.warn('⚠️ Nuclear GC failed:', error);
+  }
+  
+  // Route-based cache eviction (non-blocking, background)
+  if (cacheManager) {
+    // Use setTimeout to avoid blocking navigation
+    setTimeout(() => {
+      try {
+        cacheManager.evictByRoute(to.path)
+      } catch (error) {
+        console.warn('Cache eviction failed:', error)
+      }
+    }, 100) // Small delay to ensure smooth transition
+  }
   
   // Track page view for behavior analytics (async, non-blocking)
   import('@/services/TrackingService').then(({ trackingService }) => {

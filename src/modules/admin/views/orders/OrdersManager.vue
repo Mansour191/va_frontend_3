@@ -1194,24 +1194,29 @@ const fetchAllOrders = async () => {
 // Dynamic data functions
 const fetchOrders = async () => {
   try {
-    const response = await fetch('/api/orders');
-    if (response.ok) {
-      const data = await response.json();
-      return data.map(order => ({
-        id: order.order_number || `ORD-${order.id}`,
-        customer: order.customer?.name || 'عميل غير معروف',
-        email: order.customer?.email || '',
-        phone: order.customer?.phone || '',
-        date: order.created_at,
-        total: order.total_amount,
-        subtotal: order.subtotal,
-        shipping: order.shipping_amount || 0,
-        tax: order.tax_amount || 0,
-        status: order.status,
-        paymentMethod: order.payment_method,
-        paymentStatus: order.payment_status,
-        shippingAddress: {
-          street: order.shipping_address?.street || '',
+    const { GET_ORDERS_QUERY } = await import('@/integration/graphql/orders.graphql');
+    const { useQuery } = await import('@apollo/client');
+    
+    const { data, error } = await useQuery(GET_ORDERS_QUERY);
+    
+    if (data.value && !error.value) {
+      return data.value.orders.edges.map(edge => {
+        const order = edge.node;
+        return {
+          id: order.orderNumber || `ORD-${order.id}`,
+          customer: order.customerName || 'عميل غير معروف',
+          email: order.email || '',
+          phone: order.phone || '',
+          date: order.createdAt,
+          total: order.totalAmount,
+          subtotal: order.subtotal,
+          shipping: order.shippingAmount || 0,
+          tax: order.taxAmount || 0,
+          status: order.status,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          shippingAddress: {
+            street: order.shippingAddress?.street || '',
           city: order.shipping_address?.city || '',
           country: order.shipping_address?.country || '',
           zipCode: order.shipping_address?.zip_code || ''

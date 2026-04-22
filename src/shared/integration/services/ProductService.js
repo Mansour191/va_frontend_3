@@ -1,8 +1,13 @@
 import i18n from '@/plugins/i18n';
+import { useQuery } from '@apollo/client';
+import { 
+  PRODUCTS_ESSENTIAL_QUERY,
+  PRODUCT_BY_SLUG_QUERY,
+  PRODUCTS_BY_CATEGORY_QUERY
+} from '@/integration/graphql/products.graphql';
 
 class ProductService {
   constructor() {
-    this.apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
     this.cache = new Map();
     this.cacheTTL = 5 * 60 * 1000; // 5 دقائق
   }
@@ -18,18 +23,21 @@ class ProductService {
     }
 
     try {
-      const url = `${this.apiBaseUrl}/products/?category=${encodeURIComponent(categorySlug)}&limit=${limit}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
+      const { default: apolloClient } = await import('@/shared/plugins/apolloPlugin');
+      
+      const result = await apolloClient.query({
+        query: PRODUCTS_ESSENTIAL_QUERY,
+        variables: {
+          filter: { category: categorySlug },
+          first: limit
+        }
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
       }
       
-      const data = await response.json();
-      const products = this._transformProducts(data.results || data);
+      const products = this._transformGraphQLProducts(result.data?.products?.edges || []);
       
       this._setCache(cacheKey, products);
       return products;
@@ -50,18 +58,20 @@ class ProductService {
     }
 
     try {
-      const url = `${this.apiBaseUrl}/products/?limit=${limit}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
+      const { default: apolloClient } = await import('@/shared/plugins/apolloPlugin');
+      
+      const result = await apolloClient.query({
+        query: PRODUCTS_ESSENTIAL_QUERY,
+        variables: {
+          first: limit
+        }
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
       }
       
-      const data = await response.json();
-      const products = this._transformProducts(data.results || data);
+      const products = this._transformGraphQLProducts(result.data?.products?.edges || []);
       
       this._setCache(cacheKey, products);
       return products;
@@ -82,18 +92,18 @@ class ProductService {
     }
 
     try {
-      const url = `${this.apiBaseUrl}/products/${slug}/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
+      const { default: apolloClient } = await import('@/shared/plugins/apolloPlugin');
+      
+      const result = await apolloClient.query({
+        query: PRODUCT_BY_SLUG_QUERY,
+        variables: { slug }
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
       }
       
-      const data = await response.json();
-      const product = this._transformProduct(data);
+      const product = this._transformGraphQLProduct(result.data?.products?.edges?.[0]?.node);
       
       this._setCache(cacheKey, product);
       return product;
@@ -104,7 +114,56 @@ class ProductService {
   }
 
   /**
-   * تحويل بيانات المنتجات من الـ API
+   * تحويل بيانات المنتجات من GraphQL
+   */
+  _transformGraphQLProducts(edges) {
+    const lang = i18n.global.locale.value || i18n.global.locale;
+    return edges.map(edge => this._transformGraphQLProduct(edge.node, lang));
+  }
+
+  /**
+   * تحويل بيانات منتج واحد من GraphQL
+   */
+  _transformGraphQLProduct(product, lang = null) {
+    if (!product) return null;
+    
+    const currentLang = lang || i18n.global.locale.value || i18n.global.locale;
+    
+    // Process images to ensure absolute URLs
+    const processedImages = (product.images || []).map(image => ({
+      ...image,
+      imageUrl: this._processImageUrl(image.imageUrl || image.url)
+    }));
+    
+    return {
+      id: product.id,
+      title: currentLang === 'ar' ? product.nameAr : product.nameEn,
+      title_ar: product.nameAr,
+      title_en: product.nameEn,
+      slug: product.slug,
+      description: currentLang === 'ar' ? product.descriptionAr : product.descriptionEn,
+      description_ar: product.descriptionAr,
+      description_en: product.descriptionEn,
+      image: this._processImageUrl(product.image) || 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?q=80&w=800&auto=format&fit=crop',
+      base_price: product.basePrice || product.price,
+      cost: product.cost,
+      stock: product.stock,
+      on_sale: product.onSale,
+      discount_percent: product.discountPercent,
+      is_new: product.isNew,
+      category: product.category,
+      category_name: currentLang === 'ar' ? product.category?.nameAr : product.category?.nameEn,
+      category_slug: product.category?.slug,
+      images: processedImages,
+      variants: product.variants || [],
+      created_at: product.createdAt,
+      link: `/products/${product.slug}`,
+      summary: currentLang === 'ar' ? product.descriptionAr?.substring(0, 150) : product.descriptionEn?.substring(0, 150)
+    };
+  }
+
+  /**
+   * تحويل بيانات المنتجات من الـ API (Legacy - for fallback)
    */
   _transformProducts(data) {
     const lang = i18n.global.locale.value || i18n.global.locale;
@@ -112,7 +171,7 @@ class ProductService {
   }
 
   /**
-   * تحويل بيانات منتج واحد
+   * تحويل بيانات منتج واحد (Legacy - for fallback)
    */
   _transformProduct(product, lang = null) {
     const currentLang = lang || i18n.global.locale.value || i18n.global.locale;
@@ -161,9 +220,9 @@ class ProductService {
       return imageUrl;
     }
     
-    // If relative path, combine with API base URL
-    const apiBaseUrl = this.apiBaseUrl.replace('/api', '');
-    return `${apiBaseUrl}${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
+    // For GraphQL, we assume images are served from the same domain
+    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
+    return `${baseUrl}${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
   }
 
   /**

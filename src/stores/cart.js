@@ -1,11 +1,24 @@
 /**
  * Centralized Cart Store (Pinia)
- * This store manages all cart state and operations
+ * This store manages all cart state and operations using GraphQL
  */
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useToast } from 'vuetify'
+import { useMutation, useQuery } from '@vue/apollo-composable'
+import {
+  GET_MY_CART_QUERY,
+  GET_CART_SUMMARY_QUERY,
+  ADD_TO_CART_MUTATION,
+  UPDATE_CART_QUANTITY_MUTATION,
+  REMOVE_FROM_CART_MUTATION,
+  CLEAR_CART_MUTATION,
+  APPLY_COUPON_MUTATION,
+  REMOVE_COUPON_MUTATION,
+  SET_SHIPPING_MUTATION,
+  CART_UPDATE_SUBSCRIPTION
+} from '@/integration/graphql/cart.graphql'
 
 export const useCartStore = defineStore('cart', () => {
   // State
@@ -584,35 +597,45 @@ export const useCartStore = defineStore('cart', () => {
     isUpdating.value = true
 
     try {
-      const response = await fetch('/api/cart/clear/', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-          'Content-Type': 'application/json',
-        },
-      })
+      const { mutate, onDone, onError } = useMutation(CLEAR_CART_MUTATION)
+      
+      await new Promise((resolve, reject) => {
+        mutate()
 
-      if (response.ok) {
-        items.value = []
-        selectedWilaya.value = null
-        shippingCost.value = 0
-        appliedCoupon.value = null
-        couponDiscount.value = 0
-        saveToStorage()
-        
-        toast({
-          title: '🗑️ مسح السلة',
-          text: 'تم مسح السلة بنجاح',
-          color: 'success',
-          timeout: 2000
+        onDone((response) => {
+          const { clearCart } = response.data
+          
+          if (clearCart.success) {
+            items.value = []
+            selectedWilaya.value = null
+            shippingCost.value = 0
+            appliedCoupon.value = null
+            couponDiscount.value = 0
+            saveToStorage()
+            
+            toast({
+              title: 'Clear Cart',
+              text: clearCart.message || 'Cart cleared successfully',
+              color: 'success',
+              timeout: 2000
+            })
+            
+            resolve(response)
+          } else {
+            reject(new Error(clearCart.message))
+          }
         })
-      }
+
+        onError((error) => {
+          reject(error)
+        })
+      })
     } catch (error) {
       console.error('Error clearing cart:', error)
       
       toast({
-        title: '❌ خطأ',
-        text: 'فشل مسح السلة',
+        title: 'Error',
+        text: error.message || 'Failed to clear cart',
         color: 'error',
         timeout: 5000
       })
@@ -663,7 +686,7 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function getAuthToken() {
-    return localStorage.getItem('auth_token') || ''
+    return localStorage.getItem('token') || ''
   }
 
   function initialize() {

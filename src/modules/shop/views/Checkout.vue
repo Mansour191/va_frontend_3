@@ -427,12 +427,15 @@ const total = computed(() => {
 // Methods
 const fetchWilayas = async () => {
   try {
-    const response = await fetch('/api/locations/wilayas');
-    if (response.ok) {
-      const data = await response.json();
-      wilayas.value = data.map(wilaya => ({
+    const { WILAYAS_QUERY } = await import('@/integration/graphql/common.graphql');
+    const { useQuery } = await import('@apollo/client');
+    
+    const { data, error } = await useQuery(WILAYAS_QUERY);
+    
+    if (data.value && !error.value) {
+      wilayas.value = data.value.wilayas.map(wilaya => ({
         id: wilaya.id,
-        name: wilaya.name
+        name: wilaya.name || wilaya.arabicName
       }));
     }
   } catch (error) {
@@ -491,49 +494,6 @@ const fetchWilayas = async () => {
       { id: '56', name: 'تيميمون' },
       { id: '57', name: 'برج بوعريريج' },
       { id: '58', name: 'تلمسان' }
-    ];
-  }
-};
-
-const fetchPaymentMethods = async () => {
-  try {
-    const response = await fetch('/api/payment-methods');
-    if (response.ok) {
-      const data = await response.json();
-      paymentMethods.value = data.map(method => ({
-        value: method.value,
-        label: method.label,
-        description: method.description,
-        icon: method.icon || 'mdi-credit-card'
-      }));
-    }
-  } catch (error) {
-    console.error('Failed to fetch payment methods:', error);
-    paymentMethods.value = [
-      {
-        value: 'cash_on_delivery',
-        label: 'الدفع عند الاستلام',
-        description: 'الدفع عند استلام المنتجات',
-        icon: 'mdi-cash'
-      },
-      {
-        value: 'credit_card',
-        label: 'بطاقة بنكية',
-        description: 'الدفع الآمن بالبطاقة البنكية',
-        icon: 'mdi-credit-card'
-      },
-      {
-        value: 'cib',
-        label: 'CIB',
-        description: 'الدفع عبر CIB',
-        icon: 'mdi-bank'
-      },
-      {
-        value: 'edahabia',
-        label: 'Edahabia',
-        description: 'الدفع عبر محفظة Edahabia',
-        icon: 'mdi-wallet'
-      }
     ];
   }
 };

@@ -1,0 +1,445 @@
+import { gql } from '@apollo/client/core';
+
+// ========================================
+// PRODUCT FRAGMENTS
+// ========================================
+
+// Essential Product Info (8 fields) - For lists and cards
+export const PRODUCT_ESSENTIAL_FRAGMENT = gql`
+  fragment ProductEssential on Product {
+    id
+    nameAr
+    nameEn
+    slug
+    basePrice
+    onSale
+    discountPercent
+    isActive
+  }
+`;
+
+// Product Display Info (15 fields) - For product detail pages
+export const PRODUCT_DISPLAY_FRAGMENT = gql`
+  fragment ProductDisplay on Product {
+    id
+    nameAr
+    nameEn
+    slug
+    descriptionAr
+    basePrice
+    onSale
+    discountPercent
+    isActive
+    stock
+    category {
+      ...CategoryBasic
+    }
+    images {
+      ...ProductImages
+    }
+  }
+`;
+
+// Product Details (25 fields) - Optimized for detail pages
+export const PRODUCT_DETAILS_FRAGMENT = gql`
+  fragment ProductDetails on Product {
+    id
+    nameAr
+    nameEn
+    slug
+    descriptionAr
+    descriptionEn
+    basePrice
+    cost
+    category {
+      ...CategoryFull
+    }
+    onSale
+    discountPercent
+    isFeatured
+    isNew
+    isActive
+    stock
+    weight
+    dimensions
+    tags
+    seoTitle
+    seoDescription
+    images {
+      ...ProductImagesFull
+    }
+    variants {
+      ...ProductVariant
+    }
+    materials {
+      ...MaterialBasic
+    }
+  }
+`;
+
+// Full Product Details (49 fields) - Restricted to admin only, max 20 items
+export const PRODUCT_FULL_FRAGMENT = gql`
+  fragment ProductFull on Product {
+    id
+    nameAr
+    nameEn
+    slug
+    descriptionAr
+    descriptionEn
+    basePrice
+    cost
+    category {
+      ...CategoryFull
+    }
+    onSale
+    discountPercent
+    isFeatured
+    isNew
+    isActive
+    stock
+    weight
+    dimensions
+    tags
+    seoTitle
+    seoDescription
+    syncStatus
+    erpnextItemCode
+    syncError
+    lastSyncedAt
+    createdAt
+    updatedAt
+    images {
+      ...ProductImagesFull
+    }
+    variants {
+      ...ProductVariant
+    }
+    materials {
+      ...MaterialBasic
+    }
+  }
+`;
+
+// Product Images (3 fields) - For lists
+export const PRODUCT_IMAGES_FRAGMENT = gql`
+  fragment ProductImages on Product {
+    images {
+      id
+      imageUrl
+      isMain
+    }
+  }
+`;
+
+// Full Product Images (5 fields) - For details
+export const PRODUCT_IMAGES_FULL_FRAGMENT = gql`
+  fragment ProductImagesFull on Product {
+    images {
+      id
+      imageUrl
+      altText
+      isMain
+      sortOrder
+    }
+  }
+`;
+
+// ========================================
+// CATEGORY FRAGMENTS
+// ========================================
+
+// Basic Category Info (4 fields)
+export const CATEGORY_BASIC_FRAGMENT = gql`
+  fragment CategoryBasic on Category {
+    id
+    nameAr
+    nameEn
+    slug
+    icon
+  }
+`;
+
+// Category with Image (5 fields)
+export const CATEGORY_WITH_IMAGE_FRAGMENT = gql`
+  fragment CategoryWithImage on Category {
+    id
+    nameAr
+    nameEn
+    slug
+    icon
+    image
+  }
+`;
+
+// Full Category Info (7 fields)
+export const CATEGORY_FULL_FRAGMENT = gql`
+  fragment CategoryFull on Category {
+    id
+    nameAr
+    nameEn
+    slug
+    icon
+    image
+    isActive
+    createdAt
+  }
+`;
+
+// ========================================
+// PRICE FRAGMENTS
+// ========================================
+
+// Price Details (3 fields)
+export const PRICE_DETAILS_FRAGMENT = gql`
+  fragment PriceDetails on Product {
+    basePrice
+    cost
+    discountPercent
+  }
+`;
+
+// Calculated Price (2 fields)
+export const CALCULATED_PRICE_FRAGMENT = gql`
+  fragment CalculatedPrice on Product {
+    basePrice
+    discountPercent
+  }
+`;
+
+// ========================================
+// USER FRAGMENTS
+// ========================================
+
+// Basic User Info (5 fields)
+export const USER_BASIC_FRAGMENT = gql`
+  fragment UserBasic on User {
+    id
+    username
+    email
+    firstName
+    lastName
+  }
+`;
+
+// User Profile Info (6 fields)
+export const USER_PROFILE_FRAGMENT = gql`
+  fragment UserProfile on User {
+    phone
+    address
+    bio
+    avatar
+    preferences
+    settings
+  }
+`;
+
+// Full User Info (11 fields)
+export const USER_FULL_FRAGMENT = gql`
+  fragment UserFull on User {
+    id
+    username
+    email
+    firstName
+    lastName
+    isStaff
+    dateJoined
+    profile {
+      ...UserProfile
+    }
+  }
+`;
+
+// ========================================
+// ORDER FRAGMENTS
+// ========================================
+
+// Order Basic Info (6 fields)
+export const ORDER_BASIC_FRAGMENT = gql`
+  fragment OrderBasic on Order {
+    id
+    orderNumber
+    status
+    total
+    createdAt
+    customer {
+      ...UserBasic
+    }
+  }
+`;
+
+// Order Details (10 fields)
+export const ORDER_DETAILS_FRAGMENT = gql`
+  fragment OrderDetails on Order {
+    id
+    orderNumber
+    status
+    subtotal
+    total
+    shippingCost
+    tax
+    createdAt
+    customer {
+      ...UserBasic
+    }
+    items {
+      ...OrderItemBasic
+    }
+  }
+`;
+
+// Order Item Basic (4 fields)
+export const ORDER_ITEM_BASIC_FRAGMENT = gql`
+  fragment OrderItemBasic on OrderItem {
+    id
+    quantity
+    price
+    product {
+      ...ProductEssential
+    }
+  }
+`;
+
+// ========================================
+// MATERIAL FRAGMENTS
+// ========================================
+
+// Material Basic (6 fields)
+export const MATERIAL_BASIC_FRAGMENT = gql`
+  fragment MaterialBasic on Material {
+    id
+    nameAr
+    nameEn
+    pricePerM2
+    isPremium
+    isActive
+  }
+`;
+
+// Material Full (9 fields)
+export const MATERIAL_FULL_FRAGMENT = gql`
+  fragment MaterialFull on Material {
+    id
+    nameAr
+    nameEn
+    description
+    pricePerM2
+    isPremium
+    isActive
+    image
+    properties
+    createdAt
+  }
+`;
+
+// ========================================
+// VARIANT FRAGMENTS
+// ========================================
+
+// Product Variant (7 fields)
+export const PRODUCT_VARIANT_FRAGMENT = gql`
+  fragment ProductVariant on ProductVariant {
+    id
+    name
+    sku
+    price
+    stock
+    attributes
+    isActive
+  }
+`;
+
+// ========================================
+// COMMON FRAGMENTS
+// ========================================
+
+// Pagination Info (4 fields)
+export const PAGE_INFO_FRAGMENT = gql`
+  fragment PageInfo on PageInfo {
+    hasNextPage
+    hasPreviousPage
+    startCursor
+    endCursor
+  }
+`;
+
+// Timestamp Info (2 fields)
+export const TIMESTAMPS_FRAGMENT = gql`
+  fragment Timestamps on Timestampable {
+    createdAt
+    updatedAt
+  }
+`;
+
+// SEO Info (2 fields)
+export const SEO_FRAGMENT = gql`
+  fragment SEO on SEOFields {
+    seoTitle
+    seoDescription
+  }
+`;
+
+// Sync Info (3 fields)
+export const SYNC_FRAGMENT = gql`
+  fragment Sync on SyncFields {
+    syncStatus
+    erpnextItemCode
+    lastSyncedAt
+  }
+`;
+
+// ========================================
+// COMBINED FRAGMENTS
+// ========================================
+
+// Product for Shop List (Essential + Category + Images)
+export const PRODUCT_SHOP_LIST_FRAGMENT = gql`
+  fragment ProductShopList on Product {
+    ...ProductEssential
+    category {
+      ...CategoryBasic
+    }
+    images {
+      ...ProductImages
+    }
+  }
+  ${PRODUCT_ESSENTIAL_FRAGMENT}
+  ${CATEGORY_BASIC_FRAGMENT}
+  ${PRODUCT_IMAGES_FRAGMENT}
+`;
+
+// Product for Featured Section
+export const PRODUCT_FEATURED_FRAGMENT = gql`
+  fragment ProductFeatured on Product {
+    ...ProductEssential
+    category {
+      ...CategoryBasic
+    }
+    images {
+      ...ProductImages
+    }
+    discountPercent
+    isFeatured
+    isNew
+  }
+  ${PRODUCT_ESSENTIAL_FRAGMENT}
+  ${CATEGORY_BASIC_FRAGMENT}
+  ${PRODUCT_IMAGES_FRAGMENT}
+`;
+
+// Product for Search Results
+export const PRODUCT_SEARCH_FRAGMENT = gql`
+  fragment ProductSearch on Product {
+    ...ProductEssential
+    category {
+      ...CategoryBasic
+    }
+    images {
+      ...ProductImages
+    }
+    descriptionAr
+    tags
+  }
+  ${PRODUCT_ESSENTIAL_FRAGMENT}
+  ${CATEGORY_BASIC_FRAGMENT}
+  ${PRODUCT_IMAGES_FRAGMENT}
+`;

@@ -1,0 +1,181 @@
+import { gql } from '@apollo/client';
+
+// ========================================
+// ADMIN BROADCAST MUTATIONS
+// ========================================
+
+// Send admin broadcast notification
+export const SEND_ADMIN_BROADCAST_MUTATION = gql`
+  mutation SendAdminBroadcast($input: AdminBroadcastInput!) {
+    sendAdminBroadcast(input: $input) {
+      success
+      message
+      broadcastId
+      recipientsCount
+      scheduledAt
+    }
+  }
+`;
+
+// Get broadcast history
+export const GET_BROADCAST_HISTORY_QUERY = gql`
+  query GetBroadcastHistory($limit: Int = 20, $offset: Int = 0, $status: String) {
+    adminBroadcasts(limit: $limit, offset: $offset, status: $status) {
+      id
+      title
+      message
+      recipientType
+      recipientGroup
+      priority
+      category
+      actionUrl
+      actionText
+      status
+      sender {
+        id
+        username
+        firstName
+        lastName
+      }
+      recipientsCount
+      sentAt
+      scheduledAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// Get broadcast statistics
+export const GET_BROADCAST_STATS_QUERY = gql`
+  query GetBroadcastStats {
+    adminBroadcastStats {
+      totalSent
+      totalScheduled
+      sentToday
+      sentThisWeek
+      sentThisMonth
+      byCategory {
+        category
+        count
+      }
+      byPriority {
+        priority
+        count
+      }
+      byStatus {
+        status
+        count
+      }
+    }
+  }
+`;
+
+// Cancel scheduled broadcast
+export const CANCEL_BROADCAST_MUTATION = gql`
+  mutation CancelBroadcast($broadcastId: ID!) {
+    cancelAdminBroadcast(broadcastId: $broadcastId) {
+      success
+      message
+      cancelledAt
+    }
+  }
+`;
+
+// Get available user groups for targeting
+export const GET_USER_GROUPS_QUERY = gql`
+  query GetUserGroups {
+    userGroups {
+      id
+      name
+      description
+      memberCount
+      type
+    }
+  }
+`;
+
+// Get available user roles for targeting
+export const GET_USER_ROLES_QUERY = gql`
+  query GetUserRoles {
+    userRoles {
+      id
+      name
+      displayName
+      userCount
+      permissions
+    }
+  }
+`;
+
+// Search users for targeted broadcasts
+export const SEARCH_USERS_QUERY = gql`
+  query SearchUsers($query: String!, $limit: Int = 50) {
+    searchUsers(query: $query, limit: $limit) {
+      id
+      username
+      firstName
+      lastName
+      email
+      isActive
+      role
+      groups {
+        id
+        name
+      }
+      avatar
+    }
+  }
+`;
+
+// ========================================
+// INPUT TYPES (for reference)
+// ========================================
+
+/*
+input AdminBroadcastInput {
+  recipientType: String!
+  recipientGroup: String
+  userIds: [ID!]
+  priority: String!
+  category: String!
+  title: String!
+  message: String!
+  actionUrl: String
+  actionText: String
+  scheduleAt: DateTime
+}
+
+enum BroadcastRecipientType {
+  ALL
+  GROUP
+  ROLE
+  USERS
+}
+
+enum BroadcastPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BroadcastCategory {
+  SYSTEM
+  MARKETING
+  FINANCE
+  ORDER
+  SECURITY
+  LOGISTICS
+  INVENTORY
+  CUSTOMER_SERVICE
+}
+
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  CANCELLED
+  FAILED
+}
+*/

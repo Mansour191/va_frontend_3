@@ -4,6 +4,7 @@
  */
 import AIService from '@/shared/services/ai/AIService';
 import { reactive, watch } from 'vue';
+import { safeJSONParse } from '@/shared/utils/safeParser.js';
 
 const AITranslation = {
   install(app, options = {}) {
@@ -11,7 +12,7 @@ const AITranslation = {
     const state = reactive({
       isAITranslateEnabled: localStorage.getItem('ai_translate_enabled') === 'true',
       currentLocale: localStorage.getItem('language') || 'ar',
-      translations: JSON.parse(localStorage.getItem('ai_translations_cache') || '{}')
+      translations: safeJSONParse(localStorage.getItem('ai_translations_cache'), {}, 'AITranslation.js')
     });
 
     // مراقبة تغيير اللغة

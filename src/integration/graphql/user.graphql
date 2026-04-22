@@ -1,28 +1,19 @@
 import { gql } from '@apollo/client';
+import {
+  USER_FULL_FRAGMENT,
+  USER_BASIC_FRAGMENT,
+  USER_PROFILE_FRAGMENT,
+  TIMESTAMPS_FRAGMENT
+} from './fragments.graphql';
 
-// User Profile Query
+// User Profile Query (using fragments)
 export const ME_QUERY = gql`
   query GetMe {
     me {
-      id
-      username
-      email
-      firstName
-      lastName
-      isStaff
-      dateJoined
-      profile {
-        phone
-        address
-        bio
-        avatar
-        preferences
-        settings
-        createdAt
-        updatedAt
-      }
+      ...UserFull
     }
   }
+  ${USER_FULL_FRAGMENT}
 `;
 
 // My Permissions Query - Gets current user's permissions
@@ -43,4 +34,54 @@ export const MY_PERMISSIONS_QUERY = gql`
       }
     }
   }
+`;
+
+// User Profile Mutations
+export const UPDATE_EMAIL_MUTATION = gql`
+  mutation UpdateEmail($email: String!) {
+    updateEmail(email: $email) {
+      success
+      message
+      user {
+        ...UserFull
+      }
+    }
+  }
+  ${USER_FULL_FRAGMENT}
+`;
+
+export const CHANGE_PASSWORD_MUTATION = gql`
+  mutation ChangePassword($oldPassword: String!, $newPassword: String!) {
+    changePassword(oldPassword: $oldPassword, newPassword: $newPassword) {
+      success
+      message
+    }
+  }
+`;
+
+export const UPDATE_PROFILE_MUTATION = gql`
+  mutation UpdateProfile($input: ProfileInput!) {
+    updateProfile(input: $input) {
+      success
+      message
+      user {
+        ...UserFull
+      }
+    }
+  }
+  ${USER_FULL_FRAGMENT}
+`;
+
+export const UPLOAD_AVATAR_MUTATION = gql`
+  mutation UploadAvatar($file: Upload!) {
+    uploadAvatar(file: $file) {
+      success
+      message
+      avatarUrl
+      user {
+        ...UserFull
+      }
+    }
+  }
+  ${USER_FULL_FRAGMENT}
 `;

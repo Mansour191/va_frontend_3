@@ -1,0 +1,300 @@
+import { gql } from '@apollo/client/core';
+
+// Common utility queries and mutations
+
+// Get site statistics
+export const SITE_STATISTICS_QUERY = gql`
+  query GetSiteStatistics {
+    siteStatistics {
+      totalProducts
+      totalCategories
+      totalPages
+      totalUsers
+      totalOrders
+      activeUsers
+      revenue
+      growth
+    }
+  }
+`;
+
+// Get dashboard statistics
+export const DASHBOARD_STATISTICS_QUERY = gql`
+  query GetDashboardStatistics {
+    dashboardStatistics {
+      totalRevenue
+      totalOrders
+      totalCustomers
+      totalProducts
+      recentOrders {
+        id
+        orderNumber
+        status
+        total
+        createdAt
+        customer {
+          name
+          email
+        }
+      }
+      topProducts {
+        id
+        name
+        sales
+        revenue
+        image
+      }
+      monthlyRevenue {
+        month
+        revenue
+        orders
+      }
+    }
+  }
+`;
+
+// Get countries
+export const COUNTRIES_QUERY = gql`
+  query GetCountries {
+    countries {
+      id
+      name
+      code
+      phoneCode
+      flag
+    }
+  }
+`;
+
+// Get wilayas (Algerian provinces)
+export const WILAYAS_QUERY = gql`
+  query GetWilayas {
+    wilayas {
+      id
+      name
+      code
+      arabicName
+    }
+  }
+`;
+
+// Get payment methods
+export const PAYMENT_METHODS_QUERY = gql`
+  query GetPaymentMethods {
+    paymentMethods {
+      id
+      name
+      type
+      isActive
+      config
+      icon
+    }
+  }
+`;
+
+// Get gallery categories
+export const GALLERY_CATEGORIES_QUERY = gql`
+  query GetGalleryCategories {
+    galleryCategories {
+      id
+      name
+      slug
+      image
+      itemCount
+    }
+  }
+`;
+
+// Get gallery items
+export const GALLERY_ITEMS_QUERY = gql`
+  query GetGalleryItems($category: String, $first: Int, $after: String) {
+    galleryItems(category: $category, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          title
+          image
+          category {
+            id
+            name
+            slug
+          }
+          description
+          tags
+          featured
+          createdAt
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+`;
+
+// Get FAQ items
+export const FAQ_ITEMS_QUERY = gql`
+  query GetFAQItems($category: String) {
+    faqItems(category: $category) {
+      id
+      question
+      answer
+      category
+      order
+      isActive
+    }
+  }
+`;
+
+// Get user guide steps
+export const USER_GUIDE_STEPS_QUERY = gql`
+  query GetUserGuideSteps {
+    userGuideSteps {
+      id
+      title
+      description
+      image
+      order
+      category
+    }
+  }
+`;
+
+// Get tutorials
+export const TUTORIALS_QUERY = gql`
+  query GetTutorials($category: String) {
+    tutorials(category: $category) {
+      id
+      title
+      description
+      videoUrl
+      thumbnail
+      duration
+      difficulty
+      order
+    }
+  }
+`;
+
+// Get how to order steps
+export const HOW_TO_ORDER_STEPS_QUERY = gql`
+  query GetHowToOrderSteps {
+    howToOrderSteps {
+      id
+      title
+      description
+      image
+      order
+    }
+  }
+`;
+
+// Get shipping policy items
+export const SHIPPING_POLICY_ITEMS_QUERY = gql`
+  query GetShippingPolicyItems {
+    shippingPolicyItems {
+      id
+      title
+      description
+      icon
+      order
+    }
+  }
+`;
+
+// Calculate shipping cost
+export const CALCULATE_SHIPPING_MUTATION = gql`
+  mutation CalculateShipping($input: ShippingCalculationInput!) {
+    calculateShipping(input: $input) {
+      success
+      message
+      shippingCost
+      estimatedDelivery
+      availableMethods {
+        id
+        name
+        cost
+        estimatedDelivery
+      }
+    }
+  }
+`;
+
+// Admin broadcast mutation
+export const ADMIN_BROADCAST_MUTATION = gql`
+  mutation AdminBroadcast($input: BroadcastInput!) {
+    adminBroadcast(input: $input) {
+      success
+      message
+      broadcast {
+        id
+        title
+        message
+        type
+        targetAudience
+        scheduledAt
+        sentAt
+        status
+      }
+    }
+  }
+`;
+
+// Get shop statistics
+export const SHOP_STATISTICS_QUERY = gql`
+  query GetShopStatistics {
+    shopStatistics {
+      totalRevenue
+      totalOrders
+      totalCustomers
+      averageOrderValue
+      conversionRate
+      topProducts {
+        id
+        name
+        sales
+        revenue
+      }
+      recentOrders {
+        id
+        orderNumber
+        status
+        total
+        createdAt
+      }
+      activePromotions {
+        id
+        name
+        discount
+        type
+        validUntil
+      }
+    }
+  }
+`;
+
+// Get recent reviews
+export const RECENT_REVIEWS_QUERY = gql`
+  query GetRecentReviews($limit: Int) {
+    recentReviews(limit: $limit) {
+      id
+      rating
+      comment
+      createdAt
+      product {
+        id
+        name
+        image
+      }
+      customer {
+        name
+        avatar
+      }
+    }
+  }
+`;

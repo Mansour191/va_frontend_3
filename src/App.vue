@@ -42,11 +42,13 @@
     </v-navigation-drawer>
 
     <v-main>
-      <router-view v-slot="{ Component }">
-        <transition name="page-fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
+      <ErrorBoundary>
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </ErrorBoundary>
     </v-main>
 
     <!-- Footer يظهر فقط في الصفحات العادية (غير Dashboard) -->
@@ -65,6 +67,7 @@ import { useTheme } from '@/composables/useTheme';
 import Header from '@/shared/components/layout/AppHeader.vue';
 import Footer from '@/shared/components/layout/AppFooter.vue';
 import ChatBot from '@/shared/components/common/FloatingChatbot.vue';
+import ErrorBoundary from '@/components/ErrorBoundary.vue';
 
 // Composables
 const route = useRoute();

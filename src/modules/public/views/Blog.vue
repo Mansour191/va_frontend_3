@@ -113,59 +113,57 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
+import { useQuery } from '@vue/apollo-composable';
+import { BLOG_POSTS_QUERY } from '@/integration/graphql/blog.graphql';
 
 const store = useStore();
 const { t } = useI18n();
 
 // Reactive data
-const blogPosts = ref([]);
-const loading = ref(false);
 const showPostDetail = ref(false);
 const selectedPost = ref(null);
 
-// Methods
-const fetchBlogPosts = async () => {
-  loading.value = true;
-  try {
-    // Dynamic API call
-    const response = await fetch('/api/blog/posts');
-    if (response.ok) {
-      const data = await response.json();
-      blogPosts.value = data.map(post => ({
-        id: post.id,
-        title: post.title,
-        excerpt: post.excerpt,
-        image: post.image_url || 'https://i.postimg.cc/7L0DfPgY/Entrance1.png',
-        category: post.category?.name || 'ديكور',
-        categoryValue: post.category?.value || 'decor',
-        date: formatDate(post.created_at),
-        author: post.author?.name || 'فينيل آرت',
-        views: post.views || 0,
-        comments: post.comments_count || 0,
-        content: post.content || '<p>محتوى المقال...</p>'
-      }));
-    } else {
-      // Fallback to static data if API fails
-      setFallbackPosts();
-    }
-  } catch (error) {
-    console.error('Error fetching blog posts:', error);
-    // Fallback to static data
-    setFallbackPosts();
-    store.dispatch('notifications/showNotification', {
-      type: 'error',
-      message: 'حدث خطأ أثناء جلب المقالات'
-    });
-  } finally {
-    loading.value = false;
-  }
-};
+// GraphQL Query for blog posts
+const { 
+  result: blogPostsResult, 
+  loading, 
+  error,
+  refetch: refetchBlogPosts 
+} = useQuery(BLOG_POSTS_QUERY, {
+  first: 12
+});
 
-const setFallbackPosts = () => {
-  blogPosts.value = [
+// Computed property to extract and format blog posts from GraphQL result
+const blogPosts = computed(() => {
+  if (error.value) {
+    console.error('GraphQL Error:', error.value);
+    // Fallback to static data if GraphQL fails
+    return getFallbackPosts();
+  }
+  
+  const posts = blogPostsResult.value?.blogPosts?.edges?.map(edge => ({
+    id: edge.node.id,
+    title: edge.node.title,
+    excerpt: edge.node.excerpt,
+    image: edge.node.imageUrl || 'https://i.postimg.cc/7L0DfPgY/Entrance1.png',
+    category: edge.node.category?.name || 'ديكور',
+    categoryValue: edge.node.category?.value || 'decor',
+    date: formatDate(edge.node.createdAt),
+    author: edge.node.author?.name || 'فينيل آرت',
+    views: edge.node.views || 0,
+    comments: edge.node.commentsCount || 0,
+    content: edge.node.content || '<p>محتوى المقال...</p>'
+  })) || [];
+  
+  return posts.length > 0 ? posts : getFallbackPosts();
+});
+
+// Methods
+const getFallbackPosts = () => {
+  return [
     {
       id: 1,
       title: 'أحدث اتجاهات الفينيل لعام 2026',
@@ -208,9 +206,19 @@ const setFallbackPosts = () => {
   ];
 };
 
-const loadMore = () => {
-  // Load more posts logic
-  console.log('Loading more posts...');
+const loadMore = async () => {
+  try {
+    // Load more posts using GraphQL pagination
+    await refetchBlogPosts({
+      first: blogPosts.value.length + 12
+    });
+  } catch (error) {
+    console.error('Error loading more posts:', error);
+    store.dispatch('notifications/showNotification', {
+      type: 'error',
+      message: 'حدث خطأ أثناء تحميل المزيد من المقالات'
+    });
+  }
 };
 
 const openPost = (post) => {
@@ -240,7 +248,13 @@ const formatDate = (dateString) => {
 
 // Lifecycle
 onMounted(() => {
-  fetchBlogPosts();
+  // GraphQL query will automatically fetch on mount
+  if (error.value) {
+    store.dispatch('notifications/showNotification', {
+      type: 'warning',
+      message: 'يتم عرض البيانات الاحتياطية بسبب خطأ في الاتصال'
+    });
+  }
 });
 </script>
 

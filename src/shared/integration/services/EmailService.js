@@ -1,5 +1,6 @@
 import emailjs from 'emailjs-com';
 import AlertService from './AlertService';
+import { safeJSONParse, safeJSONStringify } from '@/shared/utils/safeParser.js';
 
 class EmailService {
   constructor() {
@@ -75,16 +76,16 @@ class EmailService {
   }
 
   logEmail(email) {
-    const logs = JSON.parse(localStorage.getItem('emailLogs') || '[]');
+    const logs = safeJSONParse(localStorage.getItem('emailLogs'), '[]', 'EmailService.js:logEmail');
     logs.unshift({
       ...email,
       timestamp: new Date().toISOString(),
     });
 
-    // احتفظ بآخر 50 بريد فقط
+    // retained 50 emails only
     if (logs.length > 50) logs.pop();
 
-    localStorage.setItem('emailLogs', JSON.stringify(logs));
+    localStorage.setItem('emailLogs', safeJSONStringify(logs, '[]', 'EmailService.js:logEmail'));
   }
 
   // إشعارات للمدير
@@ -170,7 +171,7 @@ class EmailService {
 
   // الحصول على سجل البريد
   getEmailLogs(limit = 20) {
-    const logs = JSON.parse(localStorage.getItem('emailLogs') || '[]');
+    const logs = safeJSONParse(localStorage.getItem('emailLogs'), '[]', 'EmailService.js:getEmailLogs');
     return logs.slice(0, limit);
   }
 

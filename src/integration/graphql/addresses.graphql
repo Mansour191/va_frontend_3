@@ -1,0 +1,377 @@
+import { gql } from '@apollo/client';
+import {
+  USER_BASIC_FRAGMENT,
+  TIMESTAMPS_FRAGMENT
+} from './fragments.graphql';
+
+// ========================================
+// ADDRESS FRAGMENTS
+// ========================================
+
+// Address Basic Fragment (10 fields)
+export const ADDRESS_BASIC_FRAGMENT = gql`
+  fragment AddressBasic on Address {
+    id
+    title
+    recipientName
+    phone
+    wilayaName
+    wilayaCode
+    communeName
+    communeCode
+    streetAddress
+    isDefault
+  }
+`;
+
+// Address Full Fragment (13 fields)
+export const ADDRESS_FULL_FRAGMENT = gql`
+  fragment AddressFull on Address {
+    id
+    title
+    recipientName
+    phone
+    wilayaName
+    wilayaCode
+    communeName
+    communeCode
+    streetAddress
+    deliveryInstructions
+    isDefault
+    createdAt
+    updatedAt
+  }
+`;
+
+// Address with User Fragment (14 fields)
+export const ADDRESS_WITH_USER_FRAGMENT = gql`
+  fragment AddressWithUser on Address {
+    ...AddressFull
+    user {
+      ...UserBasic
+    }
+  }
+  ${ADDRESS_FULL_FRAGMENT}
+  ${USER_BASIC_FRAGMENT}
+`;
+
+// ========================================
+// LOCATION FRAGMENTS
+// ========================================
+
+// Wilaya Basic Fragment (4 fields)
+export const WILAYA_BASIC_FRAGMENT = gql`
+  fragment WilayaBasic on Wilaya {
+    code
+    name
+    nameAr
+    nameFr
+  }
+`;
+
+// Wilaya Full Fragment (6 fields)
+export const WILAYA_FULL_FRAGMENT = gql`
+  fragment WilayaFull on Wilaya {
+    code
+    name
+    nameAr
+    nameFr
+    isActive
+    communes {
+      ...CommuneBasic
+    }
+  }
+  ${COMMUNE_BASIC_FRAGMENT}
+`;
+
+// Commune Basic Fragment (5 fields)
+export const COMMUNE_BASIC_FRAGMENT = gql`
+  fragment CommuneBasic on Commune {
+    code
+    name
+    nameAr
+    nameFr
+    wilayaCode
+  }
+`;
+
+// Commune Full Fragment (6 fields)
+export const COMMUNE_FULL_FRAGMENT = gql`
+  fragment CommuneFull on Commune {
+    ...CommuneBasic
+    isActive
+    wilaya {
+      ...WilayaBasic
+    }
+  }
+  ${COMMUNE_BASIC_FRAGMENT}
+  ${WILAYA_BASIC_FRAGMENT}
+`;
+
+// ========================================
+// ADDRESS QUERIES
+// ========================================
+
+// Get User Addresses Query
+export const GET_USER_ADDRESSES_QUERY = gql`
+  query GetUserAddresses {
+    me {
+      addresses {
+        ...AddressFull
+      }
+    }
+  }
+  ${ADDRESS_FULL_FRAGMENT}
+`;
+
+// Get Address by ID Query
+export const GET_ADDRESS_QUERY = gql`
+  query GetAddress($id: ID!) {
+    address(id: $id) {
+      ...AddressWithUser
+    }
+  }
+  ${ADDRESS_WITH_USER_FRAGMENT}
+`;
+
+// Get Default Address Query
+export const GET_DEFAULT_ADDRESS_QUERY = gql`
+  query GetDefaultAddress {
+    me {
+      defaultAddress {
+        ...AddressFull
+      }
+    }
+  }
+  ${ADDRESS_FULL_FRAGMENT}
+`;
+
+// Get All Wilayas Query
+export const GET_WILAYAS_QUERY = gql`
+  query GetWilayas($active: Boolean = true) {
+    wilayas(active: $active) {
+      ...WilayaFull
+    }
+  }
+  ${WILAYA_FULL_FRAGMENT}
+`;
+
+// Get Wilayas Basic Query (for dropdowns)
+export const GET_WILAYAS_BASIC_QUERY = gql`
+  query GetWilayasBasic($active: Boolean = true) {
+    wilayas(active: $active) {
+      ...WilayaBasic
+    }
+  }
+  ${WILAYA_BASIC_FRAGMENT}
+`;
+
+// Get Communes by Wilaya Query
+export const GET_COMMUNES_QUERY = gql`
+  query GetCommunes($wilayaCode: String!, $active: Boolean = true) {
+    communes(wilayaCode: $wilayaCode, active: $active) {
+      ...CommuneFull
+    }
+  }
+  ${COMMUNE_FULL_FRAGMENT}
+`;
+
+// Get Communes Basic Query (for dropdowns)
+export const GET_COMMUNES_BASIC_QUERY = gql`
+  query GetCommunesBasic($wilayaCode: String!, $active: Boolean = true) {
+    communes(wilayaCode: $wilayaCode, active: $active) {
+      ...CommuneBasic
+    }
+  }
+  ${COMMUNE_BASIC_FRAGMENT}
+`;
+
+// Search Addresses Query
+export const SEARCH_ADDRESSES_QUERY = gql`
+  query SearchAddresses($query: String!, $limit: Int = 10) {
+    searchAddresses(query: $query, limit: $limit) {
+      ...AddressBasic
+    }
+  }
+  ${ADDRESS_BASIC_FRAGMENT}
+`;
+
+// ========================================
+// ADDRESS MUTATIONS
+// ========================================
+
+// Create Address Mutation
+export const CREATE_ADDRESS_MUTATION = gql`
+  mutation CreateAddress($input: AddressInput!) {
+    createAddress(input: $input) {
+      success
+      message
+      address {
+        ...AddressFull
+      }
+    }
+  }
+  ${ADDRESS_FULL_FRAGMENT}
+`;
+
+// Update Address Mutation
+export const UPDATE_ADDRESS_MUTATION = gql`
+  mutation UpdateAddress($id: ID!, $input: AddressInput!) {
+    updateAddress(id: $id, input: $input) {
+      success
+      message
+      address {
+        ...AddressFull
+      }
+    }
+  }
+  ${ADDRESS_FULL_FRAGMENT}
+`;
+
+// Delete Address Mutation
+export const DELETE_ADDRESS_MUTATION = gql`
+  mutation DeleteAddress($id: ID!) {
+    deleteAddress(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
+// Set Default Address Mutation
+export const SET_DEFAULT_ADDRESS_MUTATION = gql`
+  mutation SetDefaultAddress($id: ID!) {
+    setDefaultAddress(id: $id) {
+      success
+      message
+      defaultAddress {
+        ...AddressFull
+      }
+    }
+  }
+  ${ADDRESS_FULL_FRAGMENT}
+`;
+
+// Update Multiple Addresses Mutation
+export const UPDATE_MULTIPLE_ADDRESSES_MUTATION = gql`
+  mutation UpdateMultipleAddresses($addresses: [AddressUpdateInput!]!) {
+    updateMultipleAddresses(addresses: $addresses) {
+      success
+      message
+      updatedAddresses {
+        ...AddressFull
+      }
+    }
+  }
+  ${ADDRESS_FULL_FRAGMENT}
+`;
+
+// ========================================
+// ADDRESS SUBSCRIPTIONS
+// ========================================
+
+// Address Update Subscription
+export const ADDRESS_UPDATE_SUBSCRIPTION = gql`
+  subscription OnAddressUpdate {
+    addressUpdated {
+      type
+      address {
+        ...AddressFull
+      }
+      timestamp
+    }
+  }
+  ${ADDRESS_FULL_FRAGMENT}
+`;
+
+// User Addresses Update Subscription
+export const USER_ADDRESSES_UPDATE_SUBSCRIPTION = gql`
+  subscription OnUserAddressesUpdate {
+    userAddressesUpdated {
+      addresses {
+        ...AddressFull
+      }
+      defaultAddress {
+        ...AddressFull
+      }
+      timestamp
+    }
+  }
+  ${ADDRESS_FULL_FRAGMENT}
+`;
+
+// ========================================
+// LOCATION SUBSCRIPTIONS
+// ========================================
+
+// Wilaya Update Subscription
+export const WILAYA_UPDATE_SUBSCRIPTION = gql`
+  subscription OnWilayaUpdate {
+    wilayaUpdated {
+      type
+      wilaya {
+        ...WilayaFull
+      }
+      timestamp
+    }
+  }
+  ${WILAYA_FULL_FRAGMENT}
+`;
+
+// Commune Update Subscription
+export const COMMUNE_UPDATE_SUBSCRIPTION = gql`
+  subscription OnCommuneUpdate {
+    communeUpdated {
+      type
+      commune {
+        ...CommuneFull
+      }
+      timestamp
+    }
+  }
+  ${COMMUNE_FULL_FRAGMENT}
+`;
+
+// ========================================
+// INPUT TYPES (for reference)
+// ========================================
+
+/*
+input AddressInput {
+  title: String!
+  recipientName: String!
+  phone: String!
+  wilayaCode: String!
+  wilayaName: String!
+  communeCode: String!
+  communeName: String!
+  streetAddress: String!
+  deliveryInstructions: String
+  isDefault: Boolean = false
+}
+
+input AddressUpdateInput {
+  id: ID!
+  input: AddressInput!
+}
+
+input AddressSearchInput {
+  query: String!
+  limit: Int = 10
+  wilayaCode: String
+  communeCode: String
+}
+
+input WilayaFilterInput {
+  active: Boolean = true
+  code: String
+  name: String
+}
+
+input CommuneFilterInput {
+  active: Boolean = true
+  wilayaCode: String
+  code: String
+  name: String
+}
+*/

@@ -7,6 +7,8 @@ import { WebSocketLink } from '@apollo/client/link/ws';
 import { SubscriptionClient } from 'subscriptions-transport-ws';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
+import { subscriptionManager } from '@/composables/useSubscriptionManager';
+import { websocketManager } from '@/shared/utils/websocketManager';
 
 // GraphQL Subscriptions
 import {
@@ -23,6 +25,8 @@ class GraphQLStreamingService {
     this.apolloClient = null;
     this.activeSubscriptions = new Map();
     this.eventListeners = new Map();
+    this.serviceName = 'GraphQLStreamingService';
+    this.isInitialized = false;
   }
 
   // Initialize WebSocket connection
@@ -212,11 +216,23 @@ class GraphQLStreamingService {
       // Store subscription for cleanup
       this.activeSubscriptions.set(subscriptionId, subscriptionObserver);
       
+      // Track in subscription manager
+      const trackedSubscription = subscriptionManager.registerSubscription(
+        subscriptionId,
+        () => {
+          subscriptionObserver.unsubscribe();
+          this.activeSubscriptions.delete(subscriptionId);
+        },
+        {
+          componentName: this.serviceName,
+          type: 'ai_chat_stream'
+        }
+      );
+      
       return {
         subscriptionId,
         unsubscribe: () => {
-          subscriptionObserver.unsubscribe();
-          this.activeSubscriptions.delete(subscriptionId);
+          trackedSubscription.unsubscribe();
         },
       };
     } catch (error) {
@@ -268,12 +284,24 @@ class GraphQLStreamingService {
 
       this.activeSubscriptions.set(subscriptionId, subscriptionObserver);
       
+      // Track in subscription manager
+      const trackedSubscription = subscriptionManager.registerSubscription(
+        subscriptionId,
+        () => {
+          subscriptionObserver.unsubscribe();
+          this.activeSubscriptions.delete(subscriptionId);
+        },
+        {
+          componentName: this.serviceName,
+          type: 'order_updates'
+        }
+      );
+      
       return {
         subscriptionId,
         orderId,
         unsubscribe: () => {
-          subscriptionObserver.unsubscribe();
-          this.activeSubscriptions.delete(subscriptionId);
+          trackedSubscription.unsubscribe();
         },
       };
     } catch (error) {
@@ -333,11 +361,23 @@ class GraphQLStreamingService {
 
       this.activeSubscriptions.set(subscriptionId, subscriptionObserver);
       
+      // Track in subscription manager
+      const trackedSubscription = subscriptionManager.registerSubscription(
+        subscriptionId,
+        () => {
+          subscriptionObserver.unsubscribe();
+          this.activeSubscriptions.delete(subscriptionId);
+        },
+        {
+          componentName: this.serviceName,
+          type: 'notifications'
+        }
+      );
+      
       return {
         subscriptionId,
         unsubscribe: () => {
-          subscriptionObserver.unsubscribe();
-          this.activeSubscriptions.delete(subscriptionId);
+          trackedSubscription.unsubscribe();
         },
       };
     } catch (error) {
@@ -388,11 +428,23 @@ class GraphQLStreamingService {
 
       this.activeSubscriptions.set(subscriptionId, subscriptionObserver);
       
+      // Track in subscription manager
+      const trackedSubscription = subscriptionManager.registerSubscription(
+        subscriptionId,
+        () => {
+          subscriptionObserver.unsubscribe();
+          this.activeSubscriptions.delete(subscriptionId);
+        },
+        {
+          componentName: this.serviceName,
+          type: 'erpnext_sync'
+        }
+      );
+      
       return {
         subscriptionId,
         unsubscribe: () => {
-          subscriptionObserver.unsubscribe();
-          this.activeSubscriptions.delete(subscriptionId);
+          trackedSubscription.unsubscribe();
         },
       };
     } catch (error) {
@@ -435,6 +487,9 @@ class GraphQLStreamingService {
   cleanup() {
     console.log('🧹 Cleaning up all subscriptions...');
     
+    // Use subscription manager for cleanup
+    subscriptionManager.cleanupComponent(this.serviceName);
+    
     // Unsubscribe from all active subscriptions
     this.activeSubscriptions.forEach((subscription, id) => {
       subscription.unsubscribe();
@@ -450,6 +505,9 @@ class GraphQLStreamingService {
     
     // Clear event listeners
     this.eventListeners.clear();
+    
+    // Reset initialization state
+    this.isInitialized = false;
     
     console.log('✅ Cleanup completed');
   }

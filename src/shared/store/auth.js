@@ -2,6 +2,8 @@ import { defineStore } from 'pinia';
 import GraphQLAuthService from '@/shared/integration/services/authGraphQL.js';
 import DRFAuthService from '@/shared/integration/services/drfAuth.js';
 import { DRF_LOGIN_MUTATION, DRF_REGISTER_MUTATION, DRF_UPDATE_PROFILE_MUTATION, DRF_ME_QUERY, DRF_MY_PROFILE_QUERY } from '@/shared/integration/services/drfAuth.js';
+import { safeJSONParse, safeJSONStringify } from '@/shared/utils/safeParser.js';
+import { TokenManager } from '@/shared/utils/errorHandler';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -37,12 +39,18 @@ export const useAuthStore = defineStore('auth', {
         if (token && userData) {
           this.token = token;
           this.refreshToken = refreshToken;
-          try {
-            this.user = JSON.parse(userData);
-          } catch (parseError) {
-            console.error('Failed to parse user data:', parseError);
-            this.logout();
-            return;
+          const guestUser = {
+            id: null,
+            email: '',
+            name: 'Guest User',
+            role: 'guest',
+            isGuest: true
+          };
+          
+          this.user = safeJSONParse(userData, guestUser, 'auth.js:initializeAuth');
+          if (this.user.isGuest) {
+            console.warn('Using guest user due to corrupted user data');
+            this.role = 'guest';
           }
           this.role = role || 'guest';
           
@@ -84,7 +92,7 @@ export const useAuthStore = defineStore('auth', {
       this.refreshToken = refreshToken;
       this.role = role || ((userData.isStaff || userData.is_staff) ? 'admin' : 'customer');
       
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('user', safeJSONStringify(userData, '{}', 'auth.js:setUser'));
       localStorage.setItem('token', token);
       if (refreshToken) {
         localStorage.setItem('refreshToken', refreshToken);
@@ -177,7 +185,7 @@ export const useAuthStore = defineStore('auth', {
         }
         
         this.user = response.user;
-        localStorage.setItem('user', JSON.stringify(this.user));
+        localStorage.setItem('user', safeJSONStringify(this.user, '{}', 'auth.js:updateProfile'));
         
         return response;
       } catch (e) {
@@ -199,7 +207,7 @@ export const useAuthStore = defineStore('auth', {
         
         if (user) {
           this.user = user;
-          localStorage.setItem('user', JSON.stringify(this.user));
+          localStorage.setItem('user', safeJSONStringify(this.user, '{}', 'auth.js:fetchProfile'));
           return this.user;
         }
         
@@ -226,18 +234,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null;
     },
 
-    async refreshToken() {
-      try {
-        const newToken = await GraphQLAuthService.refreshToken();
-        this.token = newToken;
-        localStorage.setItem('token', newToken);
-        return newToken;
-      } catch (error) {
-        this.logout();
-        throw error;
-      }
-    },
-
+    
     clearError() {
       this.error = null;
     },

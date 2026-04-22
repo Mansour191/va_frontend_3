@@ -1,5 +1,6 @@
 // src/integration/ai/customers/BehaviorTracker.js
 // import DataCollector from '../forecasting/data/DataCollector';
+import { safeJSONParse, safeJSONStringify } from '@/shared/utils/safeParser.js';
 
 class BehaviorTracker {
   constructor() {
@@ -390,7 +391,7 @@ class BehaviorTracker {
   persistBehavior(type, key, data, delete_ = false) {
     try {
       const storageKey = `behavior_${type}`;
-      let stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      let stored = safeJSONParse(localStorage.getItem(storageKey), {}, 'BehaviorTracker.js:persistBehavior');
 
       if (delete_) {
         delete stored[key];
@@ -398,9 +399,9 @@ class BehaviorTracker {
         stored[key] = data;
       }
 
-      localStorage.setItem(storageKey, JSON.stringify(stored));
+      localStorage.setItem(storageKey, safeJSONStringify(stored, '{}', 'BehaviorTracker.js:persistBehavior'));
     } catch (e) {
-      console.error('خطأ في حفظ السلوك:', e);
+      console.error('Error saving behavior:', e);
     }
   }
 
@@ -408,7 +409,7 @@ class BehaviorTracker {
     try {
       ['views', 'searches', 'cart', 'timeSpent'].forEach((type) => {
         const storageKey = `behavior_${type}`;
-        const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        const stored = safeJSONParse(localStorage.getItem(storageKey), {}, 'BehaviorTracker.js:loadPersistedBehaviors');
 
         Object.entries(stored).forEach(([key, value]) => {
           if (type === 'searches') {

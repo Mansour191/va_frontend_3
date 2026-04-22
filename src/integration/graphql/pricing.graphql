@@ -1,0 +1,189 @@
+import { gql } from '@apollo/client/core';
+
+// Get pricing rules query
+export const GET_PRICING_RULES_QUERY = gql`
+  query GetPricingRules($filters: PricingFilters) {
+    pricingRules(filters: $filters) {
+      id
+      name
+      description
+      type
+      value
+      conditions
+      targetProducts
+      isActive
+      priority
+      createdAt
+      updatedAt
+      appliedCount
+      impact
+    }
+  }
+`;
+
+// Create pricing rule mutation
+export const CREATE_PRICING_RULE_MUTATION = gql`
+  mutation CreatePricingRule($input: PricingRuleInput!) {
+    createPricingRule(input: $input) {
+      success
+      message
+      pricingRule {
+        id
+        name
+        description
+        type
+        value
+        conditions
+        targetProducts
+        isActive
+        priority
+        createdAt
+      }
+    }
+  }
+`;
+
+// Update pricing rule mutation
+export const UPDATE_PRICING_RULE_MUTATION = gql`
+  mutation UpdatePricingRule($id: ID!, $input: PricingRuleInput!) {
+    updatePricingRule(id: $id, input: $input) {
+      success
+      message
+      pricingRule {
+        id
+        name
+        description
+        type
+        value
+        conditions
+        targetProducts
+        isActive
+        priority
+        updatedAt
+      }
+    }
+  }
+`;
+
+// Delete pricing rule mutation
+export const DELETE_PRICING_RULE_MUTATION = gql`
+  mutation DeletePricingRule($id: ID!) {
+    deletePricingRule(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
+// Test pricing rule mutation
+export const TEST_PRICING_RULE_MUTATION = gql`
+  mutation TestPricingRule($rule: PricingRuleInput!, $productId: ID!) {
+    testPricingRule(rule: $rule, productId: $productId) {
+      success
+      message
+      currentPrice
+      recommendedPrice
+      expectedImpact
+      confidence
+    }
+  }
+`;
+
+// Get pricing analytics query
+export const GET_PRICING_ANALYTICS_QUERY = gql`
+  query GetPricingAnalytics($period: String!) {
+    pricingAnalytics(period: $period) {
+      overview {
+        totalRules
+        activeRules
+        inactiveRules
+        avgPriceIncrease
+        revenueImpact
+        avgMargin
+        conversionRate
+      }
+      trends {
+        monthly {
+          month
+          revenue
+          orders
+          avgPrice
+        }
+        weekly {
+          week
+          revenue
+          orders
+        }
+      }
+      performance {
+        topPerformingRules {
+          name
+          impact
+          usage
+          roi
+        }
+        categoryBreakdown {
+          category
+          avgPrice
+          change
+          margin
+        }
+        productPerformance {
+          name
+          price
+          sales
+          revenue
+        }
+      }
+      competitors {
+        marketShare
+        avgCompetitorPrice
+        priceDifference
+        competitorAnalysis {
+          name
+          avgPrice
+          marketShare
+        }
+      }
+      predictions {
+        nextMonth {
+          revenue
+          orders
+          avgPrice
+          confidence
+        }
+        nextQuarter {
+          revenue
+          orders
+          avgPrice
+          confidence
+        }
+      }
+      segments {
+        name
+        size
+        avgPrice
+        conversionRate
+        preferredProducts
+      }
+    }
+  }
+`;
+
+// Run pricing optimization mutation
+export const RUN_PRICING_OPTIMIZATION_MUTATION = gql`
+  mutation RunPricingOptimization($options: OptimizationOptions) {
+    runPricingOptimization(options: $options) {
+      success
+      message
+      optimizedRules {
+        id
+        name
+        oldPrice
+        newPrice
+        impact
+      }
+      totalImpact
+    }
+  }
+`;

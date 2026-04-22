@@ -3,204 +3,236 @@
  * خدمة إدارة عملية الدفع والربط مع قاعدة البيانات
  */
 
+import { useQuery, useMutation } from '@apollo/client';
+import { useErrorBoundary } from '@/shared/composables/useErrorBoundary';
+
+// GraphQL queries and mutations for checkout operations
+import {
+  GET_PAYMENT_METHODS,
+  GET_SHIPPING_COST,
+  VALIDATE_SHIPPING_ADDRESS,
+  GET_CHECKOUT_SUMMARY,
+  GET_ORDER_DETAILS,
+  GET_CUSTOMER_ORDERS,
+  CREATE_ORDER,
+  VALIDATE_SHIPPING,
+  APPLY_PROMO_CODE,
+  PROCESS_PAYMENT,
+  CALCULATE_SHIPPING_COST,
+  UPDATE_ORDER_STATUS,
+  CANCEL_ORDER,
+  REFUND_ORDER,
+  ORDER_STATUS_UPDATED,
+  PAYMENT_STATUS_UPDATED,
+  ORDER_CREATED
+} from '@/integration/graphql/checkout';
+
 class CheckoutService {
   constructor() {
-    this.apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
     this.cache = new Map();
     this.cacheTTL = 5 * 60 * 1000; // 5 دقائق
+    this.errorBoundary = useErrorBoundary();
   }
 
   /**
-   * إنشاء طلب جديد
+   * إنشاء طلب جديد باستخدام GraphQL
    * @param {Object} orderData - بيانات الطلب
    * @returns {Promise<Object>} - الطلب المنشأ
    */
   async createOrder(orderData) {
-    try {
-      const url = `${this.apiBaseUrl}/checkout/orders/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+    return this.errorBoundary.execute(async () => {
+      const { mutate } = useMutation(CREATE_ORDER);
+      
+      const result = await mutate({
+        variables: {
+          orderData: this._prepareOrderData(orderData)
         },
-        body: JSON.stringify(this._prepareOrderData(orderData))
+        errorPolicy: 'all'
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      
+      if (result.data?.createOrder?.success) {
+        const orderData = result.data.createOrder;
+        const order = this._transformOrder(orderData.order);
+        
+        // Clear cart cache after successful order
+        this.cache.delete('cart_items');
+        
+        return {
+          ...order,
+          paymentRedirectUrl: orderData.paymentRedirectUrl,
+          transactionId: orderData.transactionId
+        };
+      } else {
+        const error = result.errors?.[0] || new Error('Failed to create order');
+        console.error('❌ Error creating order:', error);
+        throw error;
       }
-
-      const data = await response.json();
-      const order = this._transformOrder(data);
-      
-      // Clear cart cache after successful order
-      this.cache.delete('cart_items');
-      
-      return order;
-    } catch (error) {
-      console.error('❌ Error creating order:', error);
-      throw error;
-    }
+    }, 'Checkout order creation');
   }
 
   /**
-   * التحقق من صحة بيانات الشحن
+   * التحقق من صحة بيانات الشحن باستخدام GraphQL
    * @param {Object} shippingData - بيانات الشحن
    * @returns {Promise<Object>} - نتيجة التحقق
    */
   async validateShipping(shippingData) {
-    try {
-      const url = `${this.apiBaseUrl}/checkout/validate-shipping/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+    return this.errorBoundary.execute(async () => {
+      const { mutate } = useMutation(VALIDATE_SHIPPING);
+      
+      const result = await mutate({
+        variables: {
+          shippingData: this._prepareShippingData(shippingData)
         },
-        body: JSON.stringify(shippingData)
+        errorPolicy: 'all'
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      
+      if (result.data?.validateShipping) {
+        const validation = result.data.validateShipping;
+        return {
+          valid: validation.valid,
+          shippingCost: validation.shippingCost,
+          estimatedDelivery: validation.estimatedDelivery,
+          errors: validation.errors?.map(err => err.message) || [],
+          warnings: validation.warnings?.map(warn => warn.message) || []
+        };
+      } else {
+        const error = result.errors?.[0] || new Error('Failed to validate shipping');
+        console.error('❌ Error validating shipping:', error);
+        return {
+          valid: false,
+          errors: [error.message]
+        };
       }
-
-      const data = await response.json();
-      return {
-        valid: data.valid,
-        shippingCost: data.shipping_cost,
-        estimatedDelivery: data.estimated_delivery,
-        errors: data.errors || []
-      };
-    } catch (error) {
-      console.error('❌ Error validating shipping:', error);
-      return {
-        valid: false,
-        errors: ['فشل في التحقق من بيانات الشحن']
-      };
-    }
+    }, 'Checkout shipping validation');
   }
 
   /**
-   * تطبيق كود الخصم على الطلب
+   * تطبيق كود الخصم على الطلب باستخدام GraphQL
    * @param {string} promoCode - كود الخصم
    * @param {Object} orderData - بيانات الطلب
    * @returns {Promise<Object>} - نتيجة تطبيق الكود
    */
   async applyPromoCode(promoCode, orderData) {
-    try {
-      const url = `${this.apiBaseUrl}/checkout/apply-promo/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+    return this.errorBoundary.execute(async () => {
+      const { mutate } = useMutation(APPLY_PROMO_CODE);
+      
+      const result = await mutate({
+        variables: {
+          promoCode,
+          orderData: this._prepareOrderData(orderData)
         },
-        body: JSON.stringify({
-          promo_code: promoCode,
-          order_data: this._prepareOrderData(orderData)
-        })
+        errorPolicy: 'all'
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      
+      if (result.data?.applyPromoCode) {
+        const promoResult = result.data.applyPromoCode;
+        return {
+          success: promoResult.success,
+          discount: promoResult.discount,
+          discountType: promoResult.discountType,
+          message: promoResult.message,
+          updatedTotals: promoResult.updatedTotals,
+          applicableItems: promoResult.applicableItems
+        };
+      } else {
+        const error = result.errors?.[0] || new Error('Failed to apply promo code');
+        console.error('❌ Error applying promo code:', error);
+        return {
+          success: false,
+          message: error.message || 'كود الخصم غير صالح'
+        };
       }
-
-      const data = await response.json();
-      return {
-        success: data.success,
-        discount: data.discount,
-        discountType: data.discount_type,
-        message: data.message,
-        updatedTotals: data.updated_totals
-      };
-    } catch (error) {
-      console.error('❌ Error applying promo code:', error);
-      return {
-        success: false,
-        message: 'كود الخصم غير صالح'
-      };
-    }
+    }, 'Checkout promo code application');
   }
 
   /**
-   * معالجة الدفع
+   * معالجة الدفع باستخدام GraphQL
    * @param {Object} paymentData - بيانات الدفع
    * @returns {Promise<Object>} - نتيجة معالجة الدفع
    */
   async processPayment(paymentData) {
-    try {
-      const url = `${this.apiBaseUrl}/checkout/payment/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+    return this.errorBoundary.execute(async () => {
+      const { mutate } = useMutation(PROCESS_PAYMENT);
+      
+      const result = await mutate({
+        variables: {
+          paymentData: this._preparePaymentData(paymentData)
         },
-        body: JSON.stringify(paymentData)
+        errorPolicy: 'all'
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      
+      if (result.data?.processPayment?.success) {
+        const paymentResult = result.data.processPayment;
+        return {
+          success: paymentResult.success,
+          paymentId: paymentResult.paymentId,
+          redirectUrl: paymentResult.redirectUrl,
+          transactionId: paymentResult.transactionId,
+          message: paymentResult.message,
+          paymentMethod: paymentResult.paymentMethod,
+          status: paymentResult.status,
+          amount: paymentResult.amount
+        };
+      } else {
+        const error = result.errors?.[0] || new Error('Failed to process payment');
+        console.error('❌ Error processing payment:', error);
+        throw error;
       }
-
-      const data = await response.json();
-      return {
-        success: data.success,
-        paymentId: data.payment_id,
-        redirectUrl: data.redirect_url,
-        transactionId: data.transaction_id,
-        message: data.message
-      };
-    } catch (error) {
-      console.error('❌ Error processing payment:', error);
-      throw error;
-    }
+    }, 'Checkout payment processing');
   }
 
   /**
-   * الحصول على تكاليف الشحن حسب الولاية
+   * الحصول على تكاليف الشحن حسب الولاية باستخدام GraphQL
    * @param {string} wilaya - الولاية
    * @param {number} weight - الوزن الإجمالي
+   * @param {Array} items - عناصر الطلب
    * @returns {Promise<Object>} - تكاليف الشحن
    */
-  async getShippingCost(wilaya, weight = 0) {
-    try {
-      const url = `${this.apiBaseUrl}/checkout/shipping-cost/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+  async getShippingCost(wilaya, weight = 0, items = []) {
+    return this.errorBoundary.execute(async () => {
+      const { mutate } = useMutation(CALCULATE_SHIPPING_COST);
+      
+      const result = await mutate({
+        variables: {
+          wilaya,
+          weight,
+          items: items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+            variant: item.variant
+          }))
         },
-        body: JSON.stringify({ wilaya, weight })
+        errorPolicy: 'all'
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      
+      if (result.data?.calculateShippingCost) {
+        const shippingData = result.data.calculateShippingCost;
+        return {
+          cost: shippingData.cost,
+          estimatedDays: shippingData.estimatedDays,
+          freeShipping: shippingData.freeShipping,
+          freeShippingThreshold: shippingData.freeShippingThreshold,
+          availableMethods: shippingData.availableMethods || []
+        };
+      } else {
+        const error = result.errors?.[0] || new Error('Failed to get shipping cost');
+        console.error('❌ Error getting shipping cost:', error);
+        
+        // Return default shipping cost
+        return {
+          cost: 800,
+          estimatedDays: 3,
+          freeShipping: false,
+          freeShippingThreshold: 15000,
+          availableMethods: []
+        };
       }
-
-      const data = await response.json();
-      return {
-        cost: data.cost,
-        estimatedDays: data.estimated_days,
-        freeShipping: data.free_shipping,
-        freeShippingThreshold: data.free_shipping_threshold
-      };
-    } catch (error) {
-      console.error('❌ Error getting shipping cost:', error);
-      // Return default shipping cost
-      return {
-        cost: 800,
-        estimatedDays: 3,
-        freeShipping: false,
-        freeShippingThreshold: 15000
-      };
-    }
+    }, 'Checkout shipping cost calculation');
   }
 
   /**
-   * الحصول على طرق الدفع المتاحة
+   * الحصول على طرق الدفع المتاحة باستخدام GraphQL
    * @returns {Promise<Array>} - طرق الدفع
    */
   async getPaymentMethods() {
@@ -210,92 +242,116 @@ class CheckoutService {
       return this.cache.get(cacheKey).data;
     }
 
-    try {
-      const url = `${this.apiBaseUrl}/checkout/payment-methods/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        }
+    return this.errorBoundary.execute(async () => {
+      const { result } = useQuery(GET_PAYMENT_METHODS, {
+        errorPolicy: 'all',
+        fetchPolicy: 'cache-first'
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const methods = this._transformPaymentMethods(data);
       
-      this._setCache(cacheKey, methods);
-      return methods;
-    } catch (error) {
-      console.error('❌ Error fetching payment methods:', error);
-      return this.getFallbackPaymentMethods();
-    }
+      if (result.value?.data?.paymentMethods) {
+        const methods = this._transformPaymentMethods(result.value.data.paymentMethods);
+        this._setCache(cacheKey, methods);
+        return methods;
+      } else {
+        console.warn('No payment methods data available, using fallback');
+        return this.getFallbackPaymentMethods();
+      }
+    }, 'Checkout payment methods fetch');
   }
 
   // ========== دوال مساعدة ==========
 
   /**
-   * تجهيز بيانات الطلب للإرسال إلى الـ API
+   * تجهيز بيانات الطلب للإرسال إلى GraphQL
    */
   _prepareOrderData(orderData) {
     return {
       customer: {
-        first_name: orderData.customer.firstName,
-        last_name: orderData.customer.lastName,
+        firstName: orderData.customer.firstName,
+        lastName: orderData.customer.lastName,
         email: orderData.customer.email,
         phone: orderData.customer.phone
       },
-      shipping_address: {
+      shippingAddress: {
         address: orderData.shipping.address,
-        wilaya: orderData.shipping.wilaya
+        wilaya: orderData.shipping.wilaya,
+        commune: orderData.shipping.commune,
+        postalCode: orderData.shipping.postalCode,
+        instructions: orderData.shipping.instructions
       },
-      payment_method: orderData.payment.method,
+      paymentMethod: orderData.payment.method,
       items: orderData.items.map(item => ({
-        product_id: item.productId,
+        productId: item.productId,
         quantity: item.quantity,
         price: item.price,
         variant: item.variant
       })),
       notes: orderData.notes,
+      promoCode: orderData.promoCode,
       totals: orderData.totals
     };
   }
 
   /**
-   * تحصر طلب من الـ API
+   * تجهيز بيانات الشحن للإرسال إلى GraphQL
+   */
+  _prepareShippingData(shippingData) {
+    return {
+      address: shippingData.address,
+      wilaya: shippingData.wilaya,
+      commune: shippingData.commune,
+      postalCode: shippingData.postalCode,
+      instructions: shippingData.instructions
+    };
+  }
+
+  /**
+   * تجهيز بيانات الدفع للإرسال إلى GraphQL
+   */
+  _preparePaymentData(paymentData) {
+    return {
+      orderId: paymentData.orderId,
+      method: paymentData.method,
+      amount: paymentData.amount,
+      currency: paymentData.currency || 'DZD',
+      returnUrl: paymentData.returnUrl,
+      cancelUrl: paymentData.cancelUrl,
+      metadata: paymentData.metadata || {}
+    };
+  }
+
+  /**
+   * تحويل طلب من GraphQL
    */
   _transformOrder(order) {
     return {
       id: order.id,
-      orderNumber: order.order_number,
+      orderNumber: order.orderNumber,
       status: order.status,
-      customerName: order.customer_name,
+      customerName: order.customerName,
       email: order.email,
       phone: order.phone,
       address: order.address,
       wilaya: order.wilaya,
-      paymentMethod: order.payment_method,
+      paymentMethod: order.paymentMethod,
       subtotal: order.subtotal,
-      shippingCost: order.shipping_cost,
-      discountAmount: order.discount_amount,
+      shippingCost: order.shippingCost,
+      discountAmount: order.discountAmount,
       total: order.total,
       items: order.items ? order.items.map(item => this._transformOrderItem(item)) : [],
-      createdAt: order.created_at,
-      updatedAt: order.updated_at,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
       notes: order.notes
     };
   }
 
   /**
-   * تحصر عنصر الطلب
+   * تحويل عنصر الطلب
    */
   _transformOrderItem(item) {
     return {
       id: item.id,
-      productId: item.product_id,
+      productId: item.productId,
       name: item.name,
       name_ar: item.name_ar,
       name_en: item.name_en,
@@ -307,12 +363,12 @@ class CheckoutService {
   }
 
   /**
-   * تحصر طرق الدفع
+   * تحويل طرق الدفع
    */
   _transformPaymentMethods(data) {
     return data.map(method => ({
-      value: method.code,
-      label: method.name,
+      value: method.value,
+      label: method.label,
       description: method.description,
       icon: method.icon,
       enabled: method.enabled,
@@ -365,6 +421,111 @@ class CheckoutService {
    */
   _getAuthToken() {
     return localStorage.getItem('authToken') || 'mock-token';
+  }
+
+  /**
+   * الحصول على تفاصيل الطلب
+   * @param {string} orderId - معرف الطلب
+   * @returns {Promise<Object>} - تفاصيل الطلب
+   */
+  async getOrderDetails(orderId) {
+    return this.errorBoundary.execute(async () => {
+      const { result } = useQuery(GET_ORDER_DETAILS, {
+        variables: { orderId },
+        errorPolicy: 'all'
+      });
+      
+      if (result.value?.data?.order) {
+        return this._transformOrder(result.value.data.order);
+      } else {
+        console.warn('No order details available for orderId:', orderId);
+        return null;
+      }
+    }, 'Checkout order details fetch');
+  }
+
+  /**
+   * الحصول على طلبات العميل
+   * @param {number} limit - عدد الطلبات
+   * @param {string} status - حالة الطلبات
+   * @returns {Promise<Array>} - قائمة الطلبات
+   */
+  async getCustomerOrders(limit = 10, status = null) {
+    return this.errorBoundary.execute(async () => {
+      const { result } = useQuery(GET_CUSTOMER_ORDERS, {
+        variables: { limit, status },
+        errorPolicy: 'all'
+      });
+      
+      if (result.value?.data?.customerOrders) {
+        return result.value.data.customerOrders.map(order => this._transformOrder(order));
+      } else {
+        console.warn('No customer orders available');
+        return [];
+      }
+    }, 'Checkout customer orders fetch');
+  }
+
+  /**
+   * تحديث حالة الطلب
+   * @param {string} orderId - معرف الطلب
+   * @param {string} status - الحالة الجديدة
+   * @param {string} reason - سبب التغيير
+   * @returns {Promise<Object>} - نتيجة التحديث
+   */
+  async updateOrderStatus(orderId, status, reason = null) {
+    return this.errorBoundary.execute(async () => {
+      const { mutate } = useMutation(UPDATE_ORDER_STATUS);
+      
+      const result = await mutate({
+        variables: { orderId, status, reason },
+        errorPolicy: 'all'
+      });
+      
+      if (result.data?.updateOrderStatus?.success) {
+        return {
+          success: true,
+          order: this._transformOrder(result.data.updateOrderStatus.order),
+          message: result.data.updateOrderStatus.message
+        };
+      } else {
+        const error = result.errors?.[0] || new Error('Failed to update order status');
+        console.error('❌ Error updating order status:', error);
+        throw error;
+      }
+    }, 'Checkout order status update');
+  }
+
+  /**
+   * إلغاء الطلب
+   * @param {string} orderId - معرف الطلب
+   * @param {string} reason - سبب الإلغاء
+   * @returns {Promise<Object>} - نتيجة الإلغاء
+   */
+  async cancelOrder(orderId, reason) {
+    return this.errorBoundary.execute(async () => {
+      const { mutate } = useMutation(CANCEL_ORDER);
+      
+      const result = await mutate({
+        variables: { orderId, reason },
+        errorPolicy: 'all'
+      });
+      
+      if (result.data?.cancelOrder?.success) {
+        const cancelResult = result.data.cancelOrder;
+        return {
+          success: true,
+          order: this._transformOrder(cancelResult.order),
+          refundAmount: cancelResult.refundAmount,
+          refundStatus: cancelResult.refundStatus,
+          message: cancelResult.message
+        };
+      } else {
+        const error = result.errors?.[0] || new Error('Failed to cancel order');
+        console.error('❌ Error cancelling order:', error);
+        throw error;
+      }
+    }, 'Checkout order cancellation');
   }
 
   /**

@@ -321,7 +321,14 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useMutation, useQuery } from '@apollo/client'
 import { useNotificationsStore, NOTIFICATION_CATEGORIES, NOTIFICATION_PRIORITIES } from '@/stores/notifications'
+import { 
+  SEND_ADMIN_BROADCAST_MUTATION,
+  GET_USER_GROUPS_QUERY,
+  GET_USER_ROLES_QUERY,
+  SEARCH_USERS_QUERY
+} from '@/integration/graphql/admin.graphql'
 
 // Props
 const props = defineProps({
@@ -337,6 +344,17 @@ const emit = defineEmits(['update:modelValue', 'sent'])
 // Store
 const notificationsStore = useNotificationsStore()
 
+// GraphQL Mutations
+const { mutate: sendAdminBroadcast, loading: isSending } = useMutation(SEND_ADMIN_BROADCAST_MUTATION)
+
+// GraphQL Queries
+const { data: userGroupsData } = useQuery(GET_USER_GROUPS_QUERY)
+const { data: userRolesData } = useQuery(GET_USER_ROLES_QUERY)
+const { data: searchUsersData, refetch: searchUsers } = useQuery(SEARCH_USERS_QUERY, {
+  variables: { query: '', limit: 50 },
+  skip: true
+})
+
 // Reactive state
 const dialog = computed({
   get: () => props.modelValue,
@@ -344,7 +362,6 @@ const dialog = computed({
 })
 
 const valid = ref(false)
-const isSending = ref(false)
 const form = ref(null)
 
 const broadcastData = ref({
@@ -381,21 +398,34 @@ const minDate = computed(() => {
 })
 
 // Options
-const groupOptions = [
-  { value: 'customers', label: 'العملاء', icon: 'mdi-account-group' },
-  { value: 'admins', label: 'المديرون', icon: 'mdi-shield-account' },
-  { value: 'managers', label: 'المديرون', icon: 'mdi-account-tie' },
-  { value: 'employees', label: 'الموظفون', icon: 'mdi-account-hard-hat' },
-  { value: 'vip_customers', label: 'العملاء المميزون', icon: 'mdi-star' }
-]
+const groupOptions = computed(() => {
+  if (!userGroupsData?.userGroups) return []
+  return userGroupsData.userGroups.map(group => ({
+    value: group.id,
+    label: group.name,
+    icon: getGroupIcon(group.type),
+    description: group.description
+  }))
+})
 
-const roleOptions = [
-  { value: 'superuser', title: 'مدير النظام' },
-  { value: 'admin', title: 'مدير' },
-  { value: 'manager', title: 'مدير قسم' },
-  { value: 'employee', title: 'موظف' },
-  { value: 'customer', title: 'عميل' }
-]
+const roleOptions = computed(() => {
+  if (!userRolesData?.userRoles) return []
+  return userRolesData.userRoles.map(role => ({
+    value: role.id,
+    title: role.displayName,
+    description: `${role.name} (${role.userCount} users)`
+  }))
+})
+
+const userOptions = computed(() => {
+  if (!searchUsersData?.searchUsers) return []
+  return searchUsersData.searchUsers.map(user => ({
+    title: `${user.firstName} ${user.lastName}`,
+    value: user.id,
+    subtitle: user.email,
+    avatar: user.avatar
+  }))
+})
 
 const categoryOptions = [
   { value: NOTIFICATION_CATEGORIES.SYSTEM, label: 'النظام', icon: 'mdi-cog' },
@@ -406,14 +436,6 @@ const categoryOptions = [
   { value: NOTIFICATION_CATEGORIES.LOGISTICS, label: 'اللوجستيات', icon: 'mdi-truck' },
   { value: NOTIFICATION_CATEGORIES.INVENTORY, label: 'المخزون', icon: 'mdi-package' },
   { value: NOTIFICATION_CATEGORIES.CUSTOMER_SERVICE, label: 'خدمة العملاء', icon: 'mdi-headset' }
-]
-
-const userOptions = [
-  // This would be populated from API
-  { title: 'أحمد محمد', value: 1 },
-  { title: 'فاطمة علي', value: 2 },
-  { title: 'محمد إبراهيم', value: 3 },
-  { title: 'مريم أحمد', value: 4 },
 ]
 
 // Methods
@@ -465,6 +487,18 @@ const getPriorityLabel = (priority) => {
   return labels[priority] || 'متوسط'
 }
 
+const getGroupIcon = (groupType) => {
+  const icons = {
+    'customers': 'mdi-account-group',
+    'admins': 'mdi-shield-account',
+    'managers': 'mdi-account-tie',
+    'employees': 'mdi-account-hard-hat',
+    'vip_customers': 'mdi-star',
+    'default': 'mdi-account-multiple'
+  }
+  return icons[groupType] || icons.default
+}
+
 const resetForm = () => {
   broadcastData.value = {
     recipient_type: 'all',
@@ -496,44 +530,34 @@ const sendBroadcast = async () => {
     return
   }
 
-  isSending.value = true
-
   try {
-    const payload = {
-      recipient_type: broadcastData.value.recipient_type,
-      priority: broadcastData.value.priority,
+    const input = {
+      recipientType: broadcastData.value.recipient_type.toUpperCase(),
+      priority: broadcastData.value.priority.toUpperCase(),
       category: broadcastData.value.category,
       title: broadcastData.value.title,
       message: broadcastData.value.message,
-      action_url: broadcastData.value.action_url || null,
-      action_text: broadcastData.value.action_text || null,
-      sender: 'admin'
+      actionUrl: broadcastData.value.action_url || null,
+      actionText: broadcastData.value.action_text || null
     }
 
     if (broadcastData.value.recipient_type === 'group') {
-      payload.recipient_group = broadcastData.value.recipient_group
+      input.recipientGroup = broadcastData.value.recipient_group
     } else if (broadcastData.value.recipient_type === 'role') {
-      payload.recipient_group = broadcastData.value.recipient_group
+      input.recipientGroup = broadcastData.value.recipient_group
     } else if (broadcastData.value.recipient_type === 'users') {
-      payload.user_ids = broadcastData.value.selected_users.map(u => u.value || u)
+      input.userIds = broadcastData.value.selected_users.map(u => u.value || u)
     }
 
     if (broadcastData.value.schedule_later) {
       const scheduleDateTime = new Date(`${broadcastData.value.schedule_date}T${broadcastData.value.schedule_time}`)
-      payload.schedule_at = scheduleDateTime.toISOString()
+      input.scheduleAt = scheduleDateTime.toISOString()
     }
 
-    const response = await fetch('/api/admin/broadcast/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAuthToken()}`
-      },
-      body: JSON.stringify(payload)
-    })
+    const result = await sendAdminBroadcast({ variables: { input } })
 
-    if (response.ok) {
-      emit('sent', payload)
+    if (result.data?.sendAdminBroadcast?.success) {
+      emit('sent', input)
       closeDialog()
       
       // Show success message
@@ -541,13 +565,13 @@ const sendBroadcast = async () => {
         type: 'system_update',
         title: '✅ تم الإرسال بنجاح',
         message: broadcastData.value.schedule_later 
-          ? 'تم جدولة الإشعار بنجاح' 
-          : 'تم إرسال الإشعار بنجاح',
+          ? `تم جدولة الإشعار بنجاح (${result.data.sendAdminBroadcast.recipientsCount} مستلم)` 
+          : `تم إرسال الإشعار بنجاح (${result.data.sendAdminBroadcast.recipientsCount} مستلم)`,
         priority: 'medium',
         category: NOTIFICATION_CATEGORIES.SYSTEM
       })
     } else {
-      throw new Error('Failed to send broadcast')
+      throw new Error(result.data?.sendAdminBroadcast?.message || 'Failed to send broadcast')
     }
   } catch (error) {
     console.error('Error sending broadcast:', error)
@@ -556,18 +580,13 @@ const sendBroadcast = async () => {
     notificationsStore.addNotification({
       type: 'system_update',
       title: '❌ فشل الإرسال',
-      message: 'حدث خطأ أثناء إرسال الإشعار. يرجى المحاولة مرة أخرى.',
+      message: error.message || 'حدث خطأ أثناء إرسال الإشعار. يرجى المحاولة مرة أخرى.',
       priority: 'high',
       category: NOTIFICATION_CATEGORIES.SYSTEM
     })
-  } finally {
-    isSending.value = false
   }
 }
 
-const getAuthToken = () => {
-  return localStorage.getItem('auth_token') || ''
-}
 
 // Watch for dialog close to reset form
 watch(dialog, (newVal) => {

@@ -270,18 +270,14 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
-import DashboardService from '@/services/DashboardService';
+import { useQuery } from '@vue/apollo-composable';
+import { DASHBOARD_STATISTICS_QUERY, SHOP_STATISTICS_QUERY, RECENT_REVIEWS_QUERY } from '@/integration/graphql/common.graphql';
 
 const router = useRouter();
 const { t } = useI18n();
 const store = useStore();
 
 // State
-const loading = ref(true);
-const error = ref(null);
-const stats = ref([]);
-const topProducts = ref([]);
-const recentOrders = ref([]);
 const salesData = ref([]);
 const selectedPeriod = ref('7days');
 
@@ -361,220 +357,203 @@ const viewOrder = (orderId) => {
   router.push(`/dashboard/orders/${orderId}`);
 };
 
-const fetchDashboardData = async () => {
-  try {
-    loading.value = true;
-    error.value = null;
+// GraphQL Queries for instant dashboard statistics with caching
+const { 
+  result: dashboardStatsResult, 
+  loading: statsLoading, 
+  error: statsError 
+} = useQuery(DASHBOARD_STATISTICS_QUERY, {}, {
+  cachePolicy: 'cache-first', // Enable instant loading with cache
+  errorPolicy: 'all'
+});
 
-    // Try to use API services first
-    const { default: GraphQLService } = await import('@/services/GraphQLService');
-    const graphQLService = new GraphQLService();
+const { 
+  result: shopStatsResult, 
+  loading: shopLoading, 
+  error: shopError 
+} = useQuery(SHOP_STATISTICS_QUERY, {}, {
+  cachePolicy: 'cache-first',
+  errorPolicy: 'all'
+});
 
-    // Fetch all dashboard data in parallel
-    const [
-      statsData,
-      productsData,
-      ordersData,
-      salesChartData
-    ] = await Promise.all([
-        graphQLService.getDashboardStats('monthly'),
-        graphQLService.getTopProducts(5),
-        graphQLService.getRecentOrders(5),
-        graphQLService.getSalesForecasts()
-      ]);
+const { 
+  result: reviewsResult, 
+  loading: reviewsLoading, 
+  error: reviewsError 
+} = useQuery(RECENT_REVIEWS_QUERY, { limit: 5 }, {
+  cachePolicy: 'cache-first',
+  errorPolicy: 'all'
+});
 
-    // Process stats data
-    stats.value = statsData.map(stat => ({
-      title: getTotalSalesTitle(stat.period),
-      value: stat.totalSales,
+// Computed properties for reactive data
+const loading = computed(() => statsLoading.value || shopLoading.value || reviewsLoading.value);
+const error = computed(() => {
+  if (statsError.value) return t('errorLoadingDashboard') || 'فشل في تحميل بيانات لوحة التحكم';
+  if (shopError.value) return t('errorLoadingShopStats') || 'فشل في تحميل إحصائيات المتجر';
+  if (reviewsError.value) return t('errorLoadingReviews') || 'فشل في تحميل التقييمات';
+  return null;
+});
+
+const stats = computed(() => {
+  if (dashboardStatsResult.value?.dashboardStatistics) {
+    const data = dashboardStatsResult.value.dashboardStatistics;
+    return [
+      {
+        title: t('totalRevenue') || 'إجمالي الإيرادات',
+        value: data.totalRevenue || 0,
+        type: 'currency',
+        icon: 'fa-solid fa-wallet',
+        color: '#D4AF37',
+        trend: 12.5,
+      },
+      {
+        title: t('totalOrders') || 'إجمالي الطلبات',
+        value: data.totalOrders || 0,
+        type: 'number',
+        icon: 'fa-solid fa-shopping-bag',
+        color: '#2196F3',
+        trend: 8.2,
+      },
+      {
+        title: t('totalCustomers') || 'إجمالي العملاء',
+        value: data.totalCustomers || 0,
+        type: 'number',
+        icon: 'fa-solid fa-users',
+        color: '#4CAF50',
+        trend: -2.4,
+      },
+      {
+        title: t('totalProducts') || 'إجمالي المنتجات',
+        value: data.totalProducts || 0,
+        type: 'number',
+        icon: 'fa-solid fa-chart-line',
+        color: '#9C27B0',
+        trend: 5.1,
+      },
+    ];
+  }
+  
+  // Fallback data
+  return [
+    {
+      title: t('totalSales') || 'إجمالي المبيعات',
+      value: 45280,
       type: 'currency',
       icon: 'fa-solid fa-wallet',
       color: '#D4AF37',
-      trend: calculateTrend(stat)
-    }));
-    
-    // Process products data
-    topProducts.value = productsData.map(product => ({
-      id: product.product.id,
-      name: product.product.nameEn,
-      image: product.product.image,
-      category: product.product.category?.nameEn || t('unknown') || 'Unknown',
+      trend: 12.5,
+    },
+    {
+      title: t('newOrders') || 'الطلبات الجديدة',
+      value: 156,
+      type: 'number',
+      icon: 'fa-solid fa-shopping-bag',
+      color: '#2196F3',
+      trend: 8.2,
+    },
+    {
+      title: t('activeCustomers') || 'العملاء النشطون',
+      value: 2420,
+      type: 'number',
+      icon: 'fa-solid fa-users',
+      color: '#4CAF50',
+      trend: -2.4,
+    },
+    {
+      title: t('averageOrderValue') || 'متوسط قيمة الطلب',
+      value: 290,
+      type: 'currency',
+      icon: 'fa-solid fa-chart-line',
+      color: '#9C27B0',
+      trend: 5.1,
+    },
+  ];
+});
+
+const topProducts = computed(() => {
+  if (shopStatsResult.value?.shopStatistics?.topProducts) {
+    return shopStatsResult.value.shopStatistics.topProducts.map(product => ({
+      id: product.id,
+      name: product.name,
+      image: product.image || '/images/products/default.jpg',
+      category: t('unknown') || 'Unknown',
       sales: product.sales,
       revenue: product.revenue
     }));
-    
-    // Process orders data
-    recentOrders.value = ordersData.map(order => ({
+  }
+  
+  // Fallback data
+  return [
+    {
+      id: 1,
+      name: 'Vinyl Art Premium',
+      image: '/images/products/product1.jpg',
+      category: 'Wall Art',
+      sales: 45,
+      revenue: 13500
+    },
+    {
+      id: 2,
+      name: 'Custom Vinyl Design',
+      image: '/images/products/product2.jpg',
+      category: 'Custom Design',
+      sales: 38,
+      revenue: 11400
+    },
+    {
+      id: 3,
+      name: 'Modern Wall Decor',
+      image: '/images/products/product3.jpg',
+      category: 'Home Decor',
+      sales: 32,
+      revenue: 9600
+    }
+  ];
+});
+
+const recentOrders = computed(() => {
+  const ordersData = dashboardStatsResult.value?.dashboardStatistics?.recentOrders || 
+                   shopStatsResult.value?.shopStatistics?.recentOrders || [];
+  
+  if (ordersData.length > 0) {
+    return ordersData.map(order => ({
       id: order.id,
       customer: order.customer?.name || t('unknownCustomer') || 'عميل غير معروف',
       date: formatDate(order.createdAt),
-      amount: order.totalAmount,
+      amount: order.total || order.totalAmount,
       status: order.status,
       statusText: getStatusText(order.status)
     }));
-    
-    salesData.value = salesChartData;
-
-  } catch (err) {
-    console.error('Error fetching dashboard data:', err);
-    error.value = t('errorLoadingDashboard') || 'فشل في تحميل بيانات لوحة التحكم';
-    
-    // Use dynamic API data instead of mock data
-    try {
-      // Fetch dashboard statistics from API
-      const statsResponse = await fetch('/api/dashboard/statistics');
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        stats.value = statsData.map(stat => ({
-          title: stat.title,
-          value: stat.value,
-          type: stat.type || 'number',
-          icon: stat.icon || 'fa-solid fa-chart-line',
-          color: stat.color || '#2196F3',
-          trend: stat.trend || 0
-        }));
-      }
-    } catch (statsError) {
-      console.error('Failed to fetch statistics:', statsError);
-    }
-
-    // Fallback to mock data only if all API calls fail
-    if (stats.value.length === 0) {
-      stats.value = [
-        {
-          title: t('totalSales') || 'إجمالي المبيعات',
-          value: 45280,
-          type: 'currency',
-          icon: 'fa-solid fa-wallet',
-          color: '#D4AF37',
-          trend: 12.5,
-        },
-        {
-          title: t('newOrders') || 'الطلبات الجديدة',
-          value: 156,
-          type: 'number',
-          icon: 'fa-solid fa-shopping-bag',
-          color: '#2196F3',
-          trend: 8.2,
-        },
-        {
-          title: t('activeCustomers') || 'العملاء النشطون',
-          value: 2420,
-          type: 'number',
-          icon: 'fa-solid fa-users',
-          color: '#4CAF50',
-          trend: -2.4,
-        },
-        {
-          title: t('averageOrderValue') || 'متوسط قيمة الطلب',
-          value: 290,
-          type: 'currency',
-          icon: 'fa-solid fa-chart-line',
-          color: '#9C27B0',
-          trend: 5.1,
-        },
-      ];
-    }
-
-    // Fetch top products from API
-    try {
-      const productsResponse = await fetch('/api/products/top-selling?limit=5');
-      if (productsResponse.ok) {
-        const productsData = await productsResponse.json();
-        topProducts.value = productsData.map(product => ({
-          id: product.id,
-          name: product.name,
-          image: product.image_url || '/images/products/default.jpg',
-          category: product.category?.name || t('unknown') || 'Unknown',
-          sales: product.sales_count,
-          revenue: product.revenue
-        }));
-      }
-    } catch (productsError) {
-      console.error('Failed to fetch top products:', productsError);
-    }
-
-    // Fallback for top products
-    if (topProducts.value.length === 0) {
-      topProducts.value = [
-        {
-          id: 1,
-          name: 'Vinyl Art Premium',
-          image: '/images/products/product1.jpg',
-          category: 'Wall Art',
-          sales: 45,
-          revenue: 13500
-        },
-        {
-          id: 2,
-          name: 'Custom Vinyl Design',
-          image: '/images/products/product2.jpg',
-          category: 'Custom Design',
-          sales: 38,
-          revenue: 11400
-        },
-        {
-          id: 3,
-          name: 'Modern Wall Decor',
-          image: '/images/products/product3.jpg',
-          category: 'Home Decor',
-          sales: 32,
-          revenue: 9600
-        }
-      ];
-    }
-
-    // Fetch recent orders from API
-    try {
-      const ordersResponse = await fetch('/api/orders/recent?limit=5');
-      if (ordersResponse.ok) {
-        const ordersData = await ordersResponse.json();
-        recentOrders.value = ordersData.map(order => ({
-          id: order.id,
-          customer: order.customer?.name || t('unknownCustomer') || 'عميل غير معروف',
-          date: formatDate(order.created_at),
-          amount: order.total_amount,
-          status: order.status,
-          statusText: getStatusText(order.status)
-        }));
-      }
-    } catch (ordersError) {
-      console.error('Failed to fetch recent orders:', ordersError);
-    }
-
-    // Fallback for recent orders
-    if (recentOrders.value.length === 0) {
-      recentOrders.value = [
-        {
-          id: 1001,
-          customer: 'أحمد محمد',
-          date: '2024-03-15',
-          amount: 450,
-          status: 'completed',
-          statusText: t('completed') || 'مكتمل'
-        },
-        {
-          id: 1002,
-          customer: 'فاطمة العلي',
-          date: '2024-03-14',
-          amount: 320,
-          status: 'processing',
-          statusText: t('processing') || 'قيد المعالجة'
-        },
-        {
-          id: 1003,
-          customer: 'محمد العبدالله',
-          date: '2024-03-14',
-          amount: 180,
-          status: 'pending',
-          statusText: t('pending') || 'في الانتظار'
-        }
-      ];
-    }
-  } finally {
-    loading.value = false;
   }
-};
+  
+  // Fallback data
+  return [
+    {
+      id: 1001,
+      customer: 'أحمد محمد',
+      date: '2024-03-15',
+      amount: 450,
+      status: 'completed',
+      statusText: t('completed') || 'مكتمل'
+    },
+    {
+      id: 1002,
+      customer: 'فاطمة العلي',
+      date: '2024-03-14',
+      amount: 320,
+      status: 'processing',
+      statusText: t('processing') || 'قيد المعالجة'
+    },
+    {
+      id: 1003,
+      customer: 'محمد العبدالله',
+      date: '2024-03-14',
+      amount: 180,
+      status: 'pending',
+      statusText: t('pending') || 'في الانتظار'
+    }
+  ];
+});
 
 // Helper functions
 const getTotalSalesTitle = (period) => {
@@ -648,10 +627,7 @@ const updateOrderStatus = async (orderId, newStatus) => {
   }
 };
 
-// Lifecycle
-onMounted(() => {
-  fetchDashboardData();
-});
+// No need for onMounted - GraphQL queries are reactive and will load automatically with caching
 </script>
 
 <style scoped>

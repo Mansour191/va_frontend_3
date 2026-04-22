@@ -7,7 +7,7 @@ import store from '@/store';
 
 class NotificationService {
   constructor() {
-    this.apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+    this.graphqlEndpoint = '/graphql/';
     this.cache = new Map();
     this.cacheTTL = 5 * 60 * 1000; // 5 دقائق
     this.hasPermission = false;
@@ -39,21 +39,26 @@ class NotificationService {
     }
 
     try {
-      const url = `${this.apiBaseUrl}/notifications/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const query = `
+        query {
+          myNotifications {
+            id
+            title
+            message
+            type
+            read
+            createdAt
+            updatedAt
+            action {
+              text
+              url
+            }
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const notifications = this._transformNotifications(data.results || data);
+      const response = await this._makeGraphQLRequest(query);
+      const notifications = this._transformNotifications(response.myNotifications || []);
       
       this._setCache(cacheKey, notifications);
       return notifications;
@@ -70,23 +75,26 @@ class NotificationService {
    */
   async markAsRead(notificationId) {
     try {
-      const url = `${this.apiBaseUrl}/notifications/${notificationId}/read/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const mutation = `
+        mutation MarkNotificationAsRead($notificationId: ID!) {
+          markNotificationAsRead(notificationId: $notificationId) {
+            success
+            message
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = { notificationId };
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.markNotificationAsRead.success) {
+        // Clear cache to force refresh
+        this.cache.delete('user_notifications');
+        
+        return true;
+      } else {
+        throw new Error(response.markNotificationAsRead.message || 'Failed to mark notification as read');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_notifications');
-      
-      return true;
     } catch (error) {
       console.error('❌ Error marking notification as read:', error);
       throw error;
@@ -99,23 +107,25 @@ class NotificationService {
    */
   async markAllAsRead() {
     try {
-      const url = `${this.apiBaseUrl}/notifications/mark-all-read/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const mutation = `
+        mutation MarkAllNotificationsAsRead {
+          markAllNotificationsAsRead {
+            success
+            message
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const response = await this._makeGraphQLRequest(mutation);
+      
+      if (response.markAllNotificationsAsRead.success) {
+        // Clear cache to force refresh
+        this.cache.delete('user_notifications');
+        
+        return true;
+      } else {
+        throw new Error(response.markAllNotificationsAsRead.message || 'Failed to mark all notifications as read');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_notifications');
-      
-      return true;
     } catch (error) {
       console.error('❌ Error marking all notifications as read:', error);
       throw error;
@@ -129,22 +139,26 @@ class NotificationService {
    */
   async deleteNotification(notificationId) {
     try {
-      const url = `${this.apiBaseUrl}/notifications/${notificationId}/`;
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`
+      const mutation = `
+        mutation DeleteNotification($notificationId: ID!) {
+          deleteNotification(notificationId: $notificationId) {
+            success
+            message
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = { notificationId };
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.deleteNotification.success) {
+        // Clear cache to force refresh
+        this.cache.delete('user_notifications');
+        
+        return true;
+      } else {
+        throw new Error(response.deleteNotification.message || 'Failed to delete notification');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_notifications');
-      
-      return true;
     } catch (error) {
       console.error('❌ Error deleting notification:', error);
       throw error;
@@ -157,21 +171,14 @@ class NotificationService {
    */
   async getUnreadCount() {
     try {
-      const url = `${this.apiBaseUrl}/notifications/unread-count/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const query = `
+        query {
+          unreadNotificationCount
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.count || 0;
+      const response = await this._makeGraphQLRequest(query);
+      return response.unreadNotificationCount || 0;
     } catch (error) {
       console.error('❌ Error getting unread count:', error);
       return 0;
@@ -257,8 +264,8 @@ class NotificationService {
       message: notification.message,
       type: notification.type,
       read: notification.read,
-      createdAt: notification.created_at,
-      updatedAt: notification.updated_at,
+      createdAt: notification.createdAt,
+      updatedAt: notification.updatedAt,
       action: notification.action ? {
         text: notification.action.text,
         url: notification.action.url,
@@ -334,6 +341,43 @@ class NotificationService {
         action: null
       }
     ];
+  }
+
+  /**
+   * تنفيذ طلب GraphQL
+   * @param {string} query - استعلام GraphQL
+   * @param {Object} variables - متغيرات الاستعلام
+   * @returns {Promise<Object>} - نتيجة الاستعلام
+   */
+  async _makeGraphQLRequest(query, variables = {}) {
+    try {
+      const response = await fetch(this.graphqlEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this._getAuthToken()}`
+        },
+        body: JSON.stringify({
+          query,
+          variables
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ GraphQL request error:', error);
+      throw error;
+    }
   }
 
   /**

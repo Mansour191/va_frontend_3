@@ -5,7 +5,7 @@
 
 class ContactService {
   constructor() {
-    this.apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+    this.graphqlEndpoint = '/graphql/';
     this.cache = new Map();
     this.cacheTTL = 10 * 60 * 1000; // 10 دقائق
   }
@@ -17,26 +17,43 @@ class ContactService {
    */
   async sendContactForm(contactData) {
     try {
-      const url = `${this.apiBaseUrl}/contact/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._prepareContactData(contactData))
-      });
+      const mutation = `
+        mutation SendContactForm($input: ContactFormInput!) {
+          sendContactForm(input: $input) {
+            success
+            message
+            contactForm {
+              id
+              name
+              email
+              phone
+              message
+              createdAt
+            }
+            errors
+          }
+        }
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      return {
-        success: true,
-        message: data.message || 'تم إرسال رسالتك بنجاح!',
-        data: data
+      const variables = {
+        input: this._prepareContactData(contactData)
       };
+
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.sendContactForm.success) {
+        return {
+          success: true,
+          message: response.sendContactForm.message || 'تم إرسال رسالتك بنجاح!',
+          data: response.sendContactForm.contactForm
+        };
+      } else {
+        return {
+          success: false,
+          message: response.sendContactForm.message || 'حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.',
+          errors: response.sendContactForm.errors
+        };
+      }
     } catch (error) {
       console.error('❌ Error sending contact form:', error);
       return {
@@ -59,21 +76,36 @@ class ContactService {
     }
 
     try {
-      const url = `${this.apiBaseUrl}/contact/info/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const query = `
+        query {
+          contactInfo {
+            email
+            phone
+            address
+            whatsapp
+            facebook
+            instagram
+            twitter
+            workingHours {
+              sunday
+              monday
+              tuesday
+              wednesday
+              thursday
+              friday
+              saturday
+            }
+            location {
+              lat
+              lng
+              address
+            }
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const contactInfo = this._transformContactInfo(data);
+      const response = await this._makeGraphQLRequest(query);
+      const contactInfo = this._transformContactInfo(response.contactInfo || {});
       
       this._setCache(cacheKey, contactInfo);
       return contactInfo;
@@ -90,24 +122,24 @@ class ContactService {
    */
   async validateContactForm(contactData) {
     try {
-      const url = `${this.apiBaseUrl}/contact/validate/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._prepareContactData(contactData))
-      });
+      const mutation = `
+        mutation ValidateContactForm($input: ContactFormInput!) {
+          validateContactForm(input: $input) {
+            valid
+            errors
+          }
+        }
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      const variables = {
+        input: this._prepareContactData(contactData)
+      };
 
-      const data = await response.json();
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
       return {
-        valid: data.valid,
-        errors: data.errors || []
+        valid: response.validateContactForm.valid,
+        errors: response.validateContactForm.errors || []
       };
     } catch (error) {
       console.error('❌ Error validating contact form:', error);
@@ -146,11 +178,19 @@ class ContactService {
       facebook: data.facebook,
       instagram: data.instagram,
       twitter: data.twitter,
-      workingHours: data.working_hours,
-      location: {
-        lat: data.latitude,
-        lng: data.longitude,
-        address: data.full_address
+      workingHours: data.workingHours || {
+        sunday: '9:00 - 17:00',
+        monday: '9:00 - 17:00',
+        tuesday: '9:00 - 17:00',
+        wednesday: '9:00 - 17:00',
+        thursday: '9:00 - 17:00',
+        friday: 'مغلق',
+        saturday: '9:00 - 13:00'
+      },
+      location: data.location || {
+        lat: 36.7538,
+        lng: 3.0588,
+        address: 'الجزائر العاصمة، الجزائر'
       }
     };
   }
@@ -182,6 +222,43 @@ class ContactService {
         address: 'الجزائر العاصمة، الجزائر'
       }
     };
+  }
+
+  /**
+   * تنفيذ طلب GraphQL
+   * @param {string} query - استعلام GraphQL
+   * @param {Object} variables - متغيرات الاستعلام
+   * @returns {Promise<Object>} - نتيجة الاستعلام
+   */
+  async _makeGraphQLRequest(query, variables = {}) {
+    try {
+      const response = await fetch(this.graphqlEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this._getAuthToken()}`
+        },
+        body: JSON.stringify({
+          query,
+          variables
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ GraphQL request error:', error);
+      throw error;
+    }
   }
 
   /**

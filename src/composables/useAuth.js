@@ -170,8 +170,15 @@ export const useAuth = () => {
     }
   };
 
-  const logout = () => {
-    // Clear tokens
+  const logout = async () => {
+    try {
+      const { TokenManager } = await import('@/shared/utils/errorHandler')
+      TokenManager.clearAuthTokens()
+    } catch (error) {
+      console.error('Error clearing tokens:', error)
+    }
+    
+    // Clear local storage tokens (legacy support)
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     
@@ -196,6 +203,24 @@ export const useAuth = () => {
     client.resetStore();
     
     console.log('🚪 User logged out');
+  };
+
+  // Refresh token using unified TokenManager
+  const refreshAccessToken = async () => {
+    try {
+      const { TokenManager } = await import('@/shared/utils/errorHandler')
+      const newToken = await TokenManager.refreshAccessToken()
+      
+      // Update local state
+      authState.token = newToken
+      localStorage.setItem('authToken', newToken)
+      
+      return newToken
+    } catch (error) {
+      console.error('❌ Token refresh failed:', error)
+      logout()
+      throw error
+    }
   };
 
   const updateProfile = async (profileData) => {
@@ -384,32 +409,6 @@ const loadUserPermissions = async () => {
         return { success: true, message: result.data.changePassword.message };
       } else {
         throw new Error(result.data?.changePassword?.message || 'Failed to change password');
-      }
-    } catch (error) {
-      authState.error = error.message;
-      return { success: false, message: error.message };
-    } finally {
-      authState.isLoading = false;
-    }
-  };
-
-  const updateProfile = async (profileData) => {
-    authState.isLoading = true;
-    authState.error = null;
-    authState.success = null;
-    
-    try {
-      const { mutate } = useMutation(UPDATE_PROFILE_MUTATION);
-      const result = await mutate({
-        variables: { input: profileData }
-      });
-      
-      if (result.data?.updateProfile?.success) {
-        authState.user = result.data.updateProfile.user;
-        authState.success = result.data.updateProfile.message;
-        return { success: true, message: result.data.updateProfile.message };
-      } else {
-        throw new Error(result.data?.updateProfile?.message || 'Failed to update profile');
       }
     } catch (error) {
       authState.error = error.message;

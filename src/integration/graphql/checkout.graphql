@@ -1,0 +1,328 @@
+# Checkout GraphQL Schema
+# Comprehensive schema for checkout, payment, and order operations
+
+# ========== FRAGMENTS ==========
+
+fragment OrderFields on Order {
+  id
+  orderNumber
+  status
+  customerName
+  email
+  phone
+  address
+  wilaya
+  paymentMethod
+  subtotal
+  shippingCost
+  discountAmount
+  total
+  items {
+    id
+    productId
+    name
+    name_ar
+    name_en
+    price
+    quantity
+    image
+    variant
+  }
+  createdAt
+  updatedAt
+  notes
+}
+
+fragment PaymentMethodFields on PaymentMethod {
+  value
+  label
+  description
+  icon
+  enabled
+  fees
+}
+
+fragment ShippingCostFields on ShippingCost {
+  cost
+  estimatedDays
+  freeShipping
+  freeShippingThreshold
+  availableMethods {
+    id
+    name
+    cost
+    estimatedDays
+    description
+  }
+}
+
+fragment PromoCodeFields on PromoCode {
+  code
+  discount
+  discountType
+  message
+  valid
+  minimumAmount
+  maximumDiscount
+  applicableProducts {
+    id
+    name
+  }
+  expiresAt
+}
+
+fragment CheckoutValidationFields on CheckoutValidation {
+  valid
+  shippingCost
+  estimatedDelivery
+  errors {
+    field
+    message
+    code
+  }
+  warnings {
+    field
+    message
+    code
+  }
+}
+
+# ========== QUERIES ==========
+
+query GetPaymentMethods {
+  paymentMethods {
+    ...PaymentMethodFields
+  }
+}
+
+query GetShippingCost($wilaya: String!, $weight: Float = 0) {
+  shippingCost(wilaya: $wilaya, weight: $weight) {
+    ...ShippingCostFields
+  }
+}
+
+query ValidateShippingAddress($shippingData: ShippingAddressInput!) {
+  validateShipping(shippingData: $shippingData) {
+    ...CheckoutValidationFields
+  }
+}
+
+query GetCheckoutSummary($items: [CheckoutItemInput!]!, $shippingAddress: ShippingAddressInput) {
+  checkoutSummary(items: $items, shippingAddress: $shippingAddress) {
+    subtotal
+    shippingCost
+    taxAmount
+    discountAmount
+    total
+    applicablePromotions {
+      ...PromoCodeFields
+    }
+    availablePaymentMethods {
+      ...PaymentMethodFields
+    }
+    estimatedDelivery
+    validation {
+      ...CheckoutValidationFields
+    }
+  }
+}
+
+query GetOrderDetails($orderId: ID!) {
+  order(id: $orderId) {
+    ...OrderFields
+  }
+}
+
+query GetCustomerOrders($limit: Int = 10, $status: String) {
+  customerOrders(limit: $limit, status: $status) {
+    ...OrderFields
+  }
+}
+
+# ========== MUTATIONS ==========
+
+mutation CreateOrder($orderData: OrderInput!) {
+  createOrder(orderData: $orderData) {
+    success
+    order {
+      ...OrderFields
+    }
+    message
+    paymentRedirectUrl
+    transactionId
+  }
+}
+
+mutation ValidateShipping($shippingData: ShippingAddressInput!) {
+  validateShipping(shippingData: $shippingData) {
+    ...CheckoutValidationFields
+  }
+}
+
+mutation ApplyPromoCode($promoCode: String!, $orderData: OrderInput!) {
+  applyPromoCode(promoCode: $promoCode, orderData: $orderData) {
+    success
+    discount
+    discountType
+    message
+    updatedTotals {
+      subtotal
+      shippingCost
+      taxAmount
+      discountAmount
+      total
+    }
+    applicableItems {
+      productId
+      name
+      discount
+    }
+  }
+}
+
+mutation ProcessPayment($paymentData: PaymentInput!) {
+  processPayment(paymentData: $paymentData) {
+    success
+    paymentId
+    redirectUrl
+    transactionId
+    message
+    paymentMethod
+    status
+    amount
+  }
+}
+
+mutation CalculateShippingCost($wilaya: String!, $weight: Float = 0, $items: [CheckoutItemInput!]) {
+  calculateShippingCost(wilaya: $wilaya, weight: $weight, items: $items) {
+    ...ShippingCostFields
+  }
+}
+
+mutation UpdateOrderStatus($orderId: ID!, $status: String!, $reason: String) {
+  updateOrderStatus(orderId: $orderId, status: $status, reason: $reason) {
+    success
+    order {
+      ...OrderFields
+    }
+    message
+  }
+}
+
+mutation CancelOrder($orderId: ID!, $reason: String!) {
+  cancelOrder(orderId: $orderId, reason: $reason) {
+    success
+    order {
+      ...OrderFields
+    }
+    refundAmount
+    refundStatus
+    message
+  }
+}
+
+mutation RefundOrder($orderId: ID!, $items: [OrderItemRefundInput!], $reason: String!) {
+  refundOrder(orderId: $orderId, items: $items, reason: $reason) {
+    success
+    refundAmount
+    refundStatus
+    refundId
+    order {
+      ...OrderFields
+    }
+    message
+  }
+}
+
+# ========== SUBSCRIPTIONS ==========
+
+subscription OrderStatusUpdated($orderId: ID!) {
+  orderStatusUpdated(orderId: $orderId) {
+    orderId
+    oldStatus
+    newStatus
+    timestamp
+    message
+    updatedBy
+  }
+}
+
+subscription PaymentStatusUpdated($paymentId: ID!) {
+  paymentStatusUpdated(paymentId: $paymentId) {
+    paymentId
+    orderId
+    oldStatus
+    newStatus
+    timestamp
+    message
+    transactionId
+  }
+}
+
+subscription OrderCreated {
+  orderCreated {
+    ...OrderFields
+  }
+}
+
+# ========== INPUT TYPES ==========
+
+input OrderInput {
+  customer: CustomerInput!
+  shippingAddress: ShippingAddressInput!
+  paymentMethod: String!
+  items: [CheckoutItemInput!]!
+  notes: String
+  promoCode: String
+  totals: OrderTotalsInput
+}
+
+input CustomerInput {
+  firstName: String!
+  lastName: String!
+  email: String!
+  phone: String!
+}
+
+input ShippingAddressInput {
+  address: String!
+  wilaya: String!
+  commune: String
+  postalCode: String
+  instructions: String
+}
+
+input CheckoutItemInput {
+  productId: ID!
+  quantity: Int!
+  price: Float!
+  variant: String
+}
+
+input OrderTotalsInput {
+  subtotal: Float!
+  shippingCost: Float!
+  taxAmount: Float!
+  discountAmount: Float!
+  total: Float!
+}
+
+input PaymentInput {
+  orderId: ID!
+  method: String!
+  amount: Float!
+  currency: String = "DZD"
+  returnUrl: String
+  cancelUrl: String
+  metadata: JSON
+}
+
+input OrderItemRefundInput {
+  orderItemId: ID!
+  quantity: Int!
+  reason: String!
+}
+
+# ========== CUSTOM SCALARS ==========
+
+scalar JSON

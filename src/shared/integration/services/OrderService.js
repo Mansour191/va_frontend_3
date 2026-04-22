@@ -5,7 +5,7 @@
 
 class OrderService {
   constructor() {
-    this.apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+    this.graphqlEndpoint = '/graphql/';
     this.cache = new Map();
     this.cacheTTL = 5 * 60 * 1000; // 5 دقائق
   }
@@ -22,21 +22,41 @@ class OrderService {
     }
 
     try {
-      const url = `${this.apiBaseUrl}/orders/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const query = `
+        query {
+          myOrders {
+            id
+            status
+            paymentMethod
+            customerName
+            phone
+            address
+            wilaya
+            subtotal
+            shippingCost
+            discountAmount
+            total
+            createdAt
+            updatedAt
+            items {
+              id
+              name
+              nameAr
+              nameEn
+              price
+              quantity
+              image
+              productId
+              variant
+            }
+            trackingNumber
+            notes
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const orders = this._transformOrders(data.results || data);
+      const response = await this._makeGraphQLRequest(query);
+      const orders = this._transformOrders(response.myOrders || []);
       
       this._setCache(cacheKey, orders);
       return orders;
@@ -59,21 +79,42 @@ class OrderService {
     }
 
     try {
-      const url = `${this.apiBaseUrl}/orders/${orderId}/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const query = `
+        query GetOrderById($orderId: ID!) {
+          order(id: $orderId) {
+            id
+            status
+            paymentMethod
+            customerName
+            phone
+            address
+            wilaya
+            subtotal
+            shippingCost
+            discountAmount
+            total
+            createdAt
+            updatedAt
+            items {
+              id
+              name
+              nameAr
+              nameEn
+              price
+              quantity
+              image
+              productId
+              variant
+            }
+            trackingNumber
+            notes
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const order = this._transformOrder(data);
+      const variables = { orderId };
+      const response = await this._makeGraphQLRequest(query, variables);
+      const order = this._transformOrder(response.order);
       
       this._setCache(cacheKey, order);
       return order;
@@ -90,27 +131,58 @@ class OrderService {
    */
   async createOrder(orderData) {
     try {
-      const url = `${this.apiBaseUrl}/orders/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._prepareOrderData(orderData))
-      });
+      const mutation = `
+        mutation CreateOrder($input: OrderInput!) {
+          createOrder(input: $input) {
+            success
+            message
+            order {
+              id
+              status
+              paymentMethod
+              customerName
+              phone
+              address
+              wilaya
+              subtotal
+              shippingCost
+              discountAmount
+              total
+              createdAt
+              updatedAt
+              items {
+                id
+                name
+                nameAr
+                nameEn
+                price
+                quantity
+                image
+                productId
+                variant
+              }
+              trackingNumber
+              notes
+            }
+            errors
+          }
+        }
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = {
+        input: this._prepareOrderData(orderData)
+      };
+
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.createOrder.success) {
+        // Clear cache to force refresh
+        this.cache.delete('user_orders');
+        
+        return this._transformOrder(response.createOrder.order);
+      } else {
+        throw new Error(response.createOrder.message || 'Failed to create order');
       }
-
-      const data = await response.json();
-      const order = this._transformOrder(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_orders');
-      
-      return order;
     } catch (error) {
       console.error('❌ Error creating order:', error);
       throw error;
@@ -125,28 +197,56 @@ class OrderService {
    */
   async updateOrderStatus(orderId, status) {
     try {
-      const url = `${this.apiBaseUrl}/orders/${orderId}/status/`;
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status })
-      });
+      const mutation = `
+        mutation UpdateOrderStatus($orderId: ID!, $status: String!) {
+          updateOrderStatus(orderId: $orderId, status: $status) {
+            success
+            message
+            order {
+              id
+              status
+              paymentMethod
+              customerName
+              phone
+              address
+              wilaya
+              subtotal
+              shippingCost
+              discountAmount
+              total
+              createdAt
+              updatedAt
+              items {
+                id
+                name
+                nameAr
+                nameEn
+                price
+                quantity
+                image
+                productId
+                variant
+              }
+              trackingNumber
+              notes
+            }
+            errors
+          }
+        }
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = { orderId, status };
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.updateOrderStatus.success) {
+        // Clear cache to force refresh
+        this.cache.delete('user_orders');
+        this.cache.delete(`order_${orderId}`);
+        
+        return this._transformOrder(response.updateOrderStatus.order);
+      } else {
+        throw new Error(response.updateOrderStatus.message || 'Failed to update order status');
       }
-
-      const data = await response.json();
-      const order = this._transformOrder(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_orders');
-      this.cache.delete(`order_${orderId}`);
-      
-      return order;
     } catch (error) {
       console.error('❌ Error updating order status:', error);
       throw error;
@@ -160,24 +260,32 @@ class OrderService {
    */
   async cancelOrder(orderId) {
     try {
-      const url = `${this.apiBaseUrl}/orders/${orderId}/cancel/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const mutation = `
+        mutation CancelOrder($orderId: ID!) {
+          cancelOrder(orderId: $orderId) {
+            success
+            message
+            order {
+              id
+              status
+            }
+            errors
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = { orderId };
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.cancelOrder.success) {
+        // Clear cache to force refresh
+        this.cache.delete('user_orders');
+        this.cache.delete(`order_${orderId}`);
+        
+        return true;
+      } else {
+        throw new Error(response.cancelOrder.message || 'Failed to cancel order');
       }
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_orders');
-      this.cache.delete(`order_${orderId}`);
-      
-      return true;
     } catch (error) {
       console.error('❌ Error cancelling order:', error);
       throw error;
@@ -191,26 +299,55 @@ class OrderService {
    */
   async reorder(orderId) {
     try {
-      const url = `${this.apiBaseUrl}/orders/${orderId}/reorder/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
+      const mutation = `
+        mutation ReorderOrder($orderId: ID!) {
+          reorderOrder(orderId: $orderId) {
+            success
+            message
+            order {
+              id
+              status
+              paymentMethod
+              customerName
+              phone
+              address
+              wilaya
+              subtotal
+              shippingCost
+              discountAmount
+              total
+              createdAt
+              updatedAt
+              items {
+                id
+                name
+                nameAr
+                nameEn
+                price
+                quantity
+                image
+                productId
+                variant
+              }
+              trackingNumber
+              notes
+            }
+            errors
+          }
         }
-      });
+      `;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const variables = { orderId };
+      const response = await this._makeGraphQLRequest(mutation, variables);
+      
+      if (response.reorderOrder.success) {
+        // Clear cache to force refresh
+        this.cache.delete('user_orders');
+        
+        return this._transformOrder(response.reorderOrder.order);
+      } else {
+        throw new Error(response.reorderOrder.message || 'Failed to reorder');
       }
-
-      const data = await response.json();
-      const order = this._transformOrder(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('user_orders');
-      
-      return order;
     } catch (error) {
       console.error('❌ Error reordering:', error);
       throw error;
@@ -406,6 +543,43 @@ class OrderService {
         notes: ''
       }
     ];
+  }
+
+  /**
+   * تنفيذ طلب GraphQL
+   * @param {string} query - استعلام GraphQL
+   * @param {Object} variables - متغيرات الاستعلام
+   * @returns {Promise<Object>} - نتيجة الاستعلام
+   */
+  async _makeGraphQLRequest(query, variables = {}) {
+    try {
+      const response = await fetch(this.graphqlEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this._getAuthToken()}`
+        },
+        body: JSON.stringify({
+          query,
+          variables
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ GraphQL request error:', error);
+      throw error;
+    }
   }
 
   /**

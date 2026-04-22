@@ -162,3 +162,165 @@ export const TOGGLE_SHIPPING_STATUS_MUTATION = gql`
     }
   }
 `;
+
+// Shipping Methods Queries and Mutations
+
+// Get all shipping methods
+export const SHIPPING_METHODS_QUERY = gql`
+  query GetShippingMethods {
+    shippingMethods {
+      edges {
+        node {
+          id
+          name
+          provider
+          serviceType
+          expectedDeliveryTime
+          logo
+          description
+          isActive
+          apiEndpoint
+          apiKey
+          trackingUrlTemplate
+          createdAt
+          updatedAt
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+`;
+
+// Get shipping method by ID
+export const SHIPPING_METHOD_QUERY = gql`
+  query GetShippingMethod($id: ID!) {
+    shippingMethod(id: $id) {
+      id
+      name
+      provider
+      serviceType
+      expectedDeliveryTime
+      logo
+      description
+      isActive
+      apiEndpoint
+      apiKey
+      trackingUrlTemplate
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// Create shipping method mutation
+export const CREATE_SHIPPING_METHOD_MUTATION = gql`
+  mutation CreateShippingMethod(
+    $name: String!
+    $provider: String!
+    $serviceType: String!
+    $expectedDeliveryTime: Int!
+    $logo: String
+    $description: String
+    $isActive: Boolean!
+    $apiEndpoint: String
+    $apiKey: String
+    $trackingUrlTemplate: String
+  ) {
+    createShippingMethod(
+      name: $name
+      provider: $provider
+      serviceType: $serviceType
+      expectedDeliveryTime: $expectedDeliveryTime
+      logo: $logo
+      description: $description
+      isActive: $isActive
+      apiEndpoint: $apiEndpoint
+      apiKey: $apiKey
+      trackingUrlTemplate: $trackingUrlTemplate
+    ) {
+      success
+      message
+      shippingMethod {
+        id
+        name
+        provider
+        serviceType
+        expectedDeliveryTime
+        logo
+        description
+        isActive
+        apiEndpoint
+        apiKey
+        trackingUrlTemplate
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+// Update shipping method mutation
+export const UPDATE_SHIPPING_METHOD_MUTATION = gql`
+  mutation UpdateShippingMethod(
+    $id: ID!
+    $name: String
+    $provider: String
+    $serviceType: String
+    $expectedDeliveryTime: Int
+    $logo: String
+    $description: String
+    $isActive: Boolean
+    $apiEndpoint: String
+    $apiKey: String
+    $trackingUrlTemplate: String
+  ) {
+    updateShippingMethod(
+      id: $id
+      name: $name
+      provider: $provider
+      serviceType: $serviceType
+      expectedDeliveryTime: $expectedDeliveryTime
+      logo: $logo
+      description: $description
+      isActive: $isActive
+      apiEndpoint: $apiEndpoint
+      apiKey: $apiKey
+      trackingUrlTemplate: $trackingUrlTemplate
+    ) {
+      success
+      message
+      shippingMethod {
+        id
+        name
+        provider
+        serviceType
+        expectedDeliveryTime
+        logo
+        description
+        isActive
+        apiEndpoint
+        apiKey
+        trackingUrlTemplate
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+// Delete shipping method mutation
+export const DELETE_SHIPPING_METHOD_MUTATION = gql`
+  mutation DeleteShippingMethod($id: ID!) {
+    deleteShippingMethod(id: $id) {
+      success
+      message
+    }
+  }
+`;

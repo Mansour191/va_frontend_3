@@ -1,0 +1,358 @@
+import { gql } from '@apollo/client';
+import {
+  PRODUCT_ESSENTIAL_FRAGMENT,
+  PRODUCT_IMAGES_FRAGMENT,
+  MATERIAL_BASIC_FRAGMENT,
+  USER_BASIC_FRAGMENT
+} from './fragments.graphql';
+
+// ========================================
+// CART FRAGMENTS
+// ========================================
+
+// Cart Item Basic Fragment (15 fields)
+export const CART_ITEM_BASIC_FRAGMENT = gql`
+  fragment CartItemBasic on CartItem {
+    id
+    quantity
+    options
+    createdAt
+    updatedAt
+    subtotal
+    totalWithDiscount
+    finalTotal
+    isAvailable
+    maxQuantity
+    currentUnitPrice
+    currentMaterialPrice
+    priceChanged
+    weight
+    dimensions
+  }
+`;
+
+// Cart Item Full Fragment (25 fields)
+export const CART_ITEM_FULL_FRAGMENT = gql`
+  fragment CartItemFull on CartItem {
+    ...CartItemBasic
+    product {
+      ...ProductEssential
+      images {
+        ...ProductImages
+      }
+      stock
+      isActive
+    }
+    material {
+      ...MaterialBasic
+    }
+    productDetails
+    discountAmount
+    couponDiscount
+  }
+  ${CART_ITEM_BASIC_FRAGMENT}
+  ${PRODUCT_ESSENTIAL_FRAGMENT}
+  ${PRODUCT_IMAGES_FRAGMENT}
+  ${MATERIAL_BASIC_FRAGMENT}
+`;
+
+// Cart Summary Fragment (8 fields)
+export const CART_SUMMARY_FRAGMENT = gql`
+  fragment CartSummary on CartSummary {
+    totalItems
+    subtotal
+    discountTotal
+    shippingCost
+    tax
+    total
+    couponCode
+    couponDiscount
+  }
+`;
+
+// Full Cart Fragment (30+ fields)
+export const CART_FULL_FRAGMENT = gql`
+  fragment CartFull on Cart {
+    id
+    sessionId
+    items {
+      ...CartItemFull
+    }
+    summary {
+      ...CartSummary
+    }
+    selectedWilaya
+    deliveryType
+    appliedCoupon
+    createdAt
+    updatedAt
+  }
+  ${CART_ITEM_FULL_FRAGMENT}
+  ${CART_SUMMARY_FRAGMENT}
+`;
+
+// ========================================
+// CART QUERIES
+// ========================================
+
+// Get My Cart Query
+export const GET_MY_CART_QUERY = gql`
+  query GetMyCart {
+    myCart {
+      ...CartFull
+    }
+  }
+  ${CART_FULL_FRAGMENT}
+`;
+
+// Get Cart Summary Query
+export const GET_CART_SUMMARY_QUERY = gql`
+  query GetCartSummary {
+    myCart {
+      id
+      summary {
+        ...CartSummary
+      }
+    }
+  }
+  ${CART_SUMMARY_FRAGMENT}
+`;
+
+// Get Cart Items Count Query
+export const GET_CART_ITEMS_COUNT_QUERY = gql`
+  query GetCartItemsCount {
+    myCart {
+      id
+      summary {
+        totalItems
+      }
+    }
+  }
+`;
+
+// ========================================
+// CART MUTATIONS
+// ========================================
+
+// Add to Cart Mutation
+export const ADD_TO_CART_MUTATION = gql`
+  mutation AddToCart($input: CartItemInput!) {
+    addToCart(input: $input) {
+      success
+      message
+      cartItem {
+        ...CartItemFull
+      }
+      cartSummary
+    }
+  }
+  ${CART_ITEM_FULL_FRAGMENT}
+`;
+
+// Update Cart Quantity Mutation
+export const UPDATE_CART_QUANTITY_MUTATION = gql`
+  mutation UpdateCartQuantity($input: UpdateCartInput!) {
+    updateCartQuantity(input: $input) {
+      success
+      message
+      cartItem {
+        ...CartItemBasic
+      }
+      cartSummary
+    }
+  }
+  ${CART_ITEM_BASIC_FRAGMENT}
+`;
+
+// Remove from Cart Mutation
+export const REMOVE_FROM_CART_MUTATION = gql`
+  mutation RemoveFromCart($cartItemId: Int!) {
+    removeFromCart(cartItemId: $cartItemId) {
+      success
+      message
+      cartSummary
+    }
+  }
+`;
+
+// Clear Cart Mutation
+export const CLEAR_CART_MUTATION = gql`
+  mutation ClearCart {
+    clearCart {
+      success
+      message
+      cartSummary
+    }
+  }
+`;
+
+// Apply Coupon Mutation
+export const APPLY_COUPON_MUTATION = gql`
+  mutation ApplyCoupon($input: ApplyCouponInput!) {
+    applyCoupon(input: $input) {
+      success
+      message
+      cartSummary
+    }
+  }
+`;
+
+// Remove Coupon Mutation
+export const REMOVE_COUPON_MUTATION = gql`
+  mutation RemoveCoupon {
+    removeCoupon {
+      success
+      message
+      cartSummary
+    }
+  }
+`;
+
+// Set Shipping Mutation
+export const SET_SHIPPING_MUTATION = gql`
+  mutation SetShipping($input: SetShippingInput!) {
+    setShipping(input: $input) {
+      success
+      message
+      cartSummary
+    }
+  }
+`;
+
+// Update Cart Options Mutation
+export const UPDATE_CART_OPTIONS_MUTATION = gql`
+  mutation UpdateCartOptions($input: UpdateCartOptionsInput!) {
+    updateCartOptions(input: $input) {
+      success
+      message
+      cartItem {
+        ...CartItemFull
+      }
+      cartSummary
+    }
+  }
+  ${CART_ITEM_FULL_FRAGMENT}
+`;
+
+// ========================================
+// CART SUBSCRIPTIONS
+// ========================================
+
+// Cart Update Subscription
+export const CART_UPDATE_SUBSCRIPTION = gql`
+  subscription OnCartUpdate {
+    cartUpdated {
+      type
+      cart {
+        ...CartFull
+      }
+      timestamp
+    }
+  }
+  ${CART_FULL_FRAGMENT}
+`;
+
+// Cart Item Update Subscription
+export const CART_ITEM_UPDATE_SUBSCRIPTION = gql`
+  subscription OnCartItemUpdate {
+    cartItemUpdated {
+      type
+      cartItem {
+        ...CartItemFull
+      }
+      timestamp
+    }
+  }
+  ${CART_ITEM_FULL_FRAGMENT}
+`;
+
+// Cart Summary Update Subscription
+export const CART_SUMMARY_UPDATE_SUBSCRIPTION = gql`
+  subscription OnCartSummaryUpdate {
+    cartSummaryUpdated {
+      summary {
+        ...CartSummary
+      }
+      timestamp
+    }
+  }
+  ${CART_SUMMARY_FRAGMENT}
+`;
+
+// ========================================
+// INPUT TYPES (for reference)
+// ========================================
+
+/*
+input CartItemInput {
+  productId: ID!
+  materialId: ID
+  quantity: Int!
+  options: String
+}
+
+input UpdateCartInput {
+  cartItemId: ID!
+  quantity: Int!
+}
+
+input UpdateCartOptionsInput {
+  cartItemId: ID!
+  options: String!
+}
+
+input ApplyCouponInput {
+  couponCode: String!
+}
+
+input SetShippingInput {
+  wilayaId: ID!
+  deliveryType: String!
+}
+
+type Cart {
+  id: ID!
+  sessionId: String
+  items: [CartItem!]!
+  summary: CartSummary!
+  selectedWilaya: String
+  deliveryType: String
+  appliedCoupon: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type CartItem {
+  id: ID!
+  quantity: Int!
+  options: String
+  product: Product!
+  material: Material
+  productDetails: String
+  subtotal: Float!
+  totalWithDiscount: Float!
+  finalTotal: Float!
+  isAvailable: Boolean!
+  maxQuantity: Int!
+  currentUnitPrice: Float!
+  currentMaterialPrice: Float!
+  priceChanged: Boolean!
+  weight: Float
+  dimensions: String
+  discountAmount: Float
+  couponDiscount: Float
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type CartSummary {
+  totalItems: Int!
+  subtotal: Float!
+  discountTotal: Float!
+  shippingCost: Float!
+  tax: Float!
+  total: Float!
+  couponCode: String
+  couponDiscount: Float!
+}
+*/

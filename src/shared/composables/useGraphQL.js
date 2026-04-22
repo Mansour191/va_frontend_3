@@ -19,14 +19,15 @@ import {
   GET_CATEGORIES,
   GET_ME,
   GET_SHIPPING_OPTIONS
-  // Blog/Posts queries - DISABLED (No backend models)
-  // GET_LATEST_BLOG_POSTS,
-  // GET_BLOG_POSTS,
-  // GET_BLOG_POST,
-  // Location queries - DISABLED (No backend models)
-  // GET_LOCATION_INFO,
-  // GET_NEARBY_BRANCHES
 } from '@/shared/services/graphql/queries';
+
+import {
+  GET_LOCATION_INFO,
+  GET_NEARBY_BRANCHES,
+  GET_LATEST_BLOG_POSTS,
+  GET_BLOG_POSTS,
+  GET_BLOG_POST
+} from '@/shared/services/graphql/queries_extended';
 
 import {
   LOGIN_MUTATION,
@@ -202,26 +203,46 @@ export function useShippingOptions() {
 //   });
 // }
 
-// Location GraphQL Composables - DISABLED (No backend models)
-// export function useLocationInfo() {
-//   return useGraphQLQuery(GET_LOCATION_INFO);
-// }
+// Location GraphQL Composables
+export function useLocationInfo() {
+  return useGraphQLQuery(GET_LOCATION_INFO);
+}
 
-// export function useNearbyBranches(latitude, longitude, radius = 50) {
-//   return useGraphQLQuery(GET_NEARBY_BRANCHES, {
-//     variables: { latitude, longitude, radius },
-//     skip: !latitude || !longitude
-//   });
-// }
+export function useNearbyBranches(latitude, longitude, radius = 50) {
+  return useGraphQLQuery(GET_NEARBY_BRANCHES, {
+    variables: { latitude, longitude, radius },
+    skip: !latitude || !longitude
+  });
+}
 
-// Contact GraphQL Composables - DISABLED (No backend models)
-// export function useSendContactForm() {
-//   return useGraphQLMutation(SEND_CONTACT_FORM_MUTATION);
-// }
+// Blog GraphQL Composables
+export function useLatestBlogPosts(limit = 4) {
+  return useGraphQLQuery(GET_LATEST_BLOG_POSTS, {
+    variables: { limit }
+  });
+}
 
-// export function useSendQuickMessage() {
-//   return useGraphQLMutation(SEND_QUICK_MESSAGE_MUTATION);
-// }
+export function useBlogPosts(limit = 10, offset = 0) {
+  return useGraphQLQuery(GET_BLOG_POSTS, {
+    variables: { limit, offset }
+  });
+}
+
+export function useBlogPost(slug) {
+  return useGraphQLQuery(GET_BLOG_POST, {
+    variables: { slug },
+    skip: !slug
+  });
+}
+
+// Contact GraphQL Composables
+export function useSendContactForm() {
+  return useGraphQLMutation(SEND_CONTACT_FORM_MUTATION);
+}
+
+export function useSendQuickMessage() {
+  return useGraphQLMutation(SEND_QUICK_MESSAGE_MUTATION);
+}
 
 // Simple GraphQL execution composable for custom queries/mutations
 export function useGraphQL() {

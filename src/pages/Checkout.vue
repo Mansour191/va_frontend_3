@@ -154,7 +154,7 @@
                           variant="outlined"
                         >
                           <v-icon start size="14">mdi-shield-check</v-icon>
-                          تأمين متاح
+                          Insurance Available
                         </v-chip>
                         <v-chip
                           v-if="selectedShippingPrice?.tracking_available"
@@ -423,11 +423,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/stores/cart'
 import { useShippingStore } from '@/stores/shipping'
 import { useToast } from 'vuetify'
+import { useMutation, useQuery } from '@vue/apollo-composable'
+import { gql } from '@apollo/client/core'
+import { CALCULATE_SHIPPING_MUTATION, PAYMENT_METHODS_QUERY } from '@/integration/graphql/common.graphql'
+import { GET_ALGERIAN_WILAYAS } from '@/integration/graphql/locations.graphql'
+import { ALGERIA_STATES } from '@/shared/constants/algeriaStates.js'
 import ShippingSelector from '@/components/ShippingSelector.vue'
 
 // Router
@@ -471,12 +476,74 @@ const couponDiscount = ref(0)
 const isApplyingCoupon = ref(false)
 const couponError = ref('')
 
-// Computed
+// GraphQL Query with 2-second fallback to algeriaStates.js
+const wilayasQuery = useQuery(GET_ALGERIAN_WILAYAS)
+const isUsingFallback = ref(false)
+const fallbackWilayas = ref([])
+
+// Race condition timer: if GraphQL takes > 2 seconds, use fallback
+const raceConditionTimer = ref(null)
+
+// Start race condition timer when component mounts
+onMounted(() => {
+  raceConditionTimer.value = setTimeout(() => {
+    if (wilayasQuery.loading.value) {
+      console.log('GraphQL timeout (2s) - switching to algeriaStates.js fallback')
+      isUsingFallback.value = true
+      fallbackWilayas.value = ALGERIA_STATES.map(state => ({
+        id: state.id,
+        wilayaId: state.code,
+        nameAr: state.nameAr,
+        nameFr: state.nameFr,
+        nameEn: state.name,
+        code: state.code,
+        isActive: true,
+        freeShippingMinimum: null,
+        title: `${state.nameAr} (${state.code})`
+      }))
+    }
+  }, 2000)
+})
+
+// Clean up timer on unmount
+onUnmounted(() => {
+  if (raceConditionTimer.value) {
+    clearTimeout(raceConditionTimer.value)
+  }
+})
+
+// Computed property that handles both GraphQL and fallback data
 const availableWilayas = computed(() => {
-  return shippingStore.activeWilayas.map(wilaya => ({
-    ...wilaya,
-    title: `${wilaya.nameAr} (${wilaya.wilayaId})`
-  }))
+  if (isUsingFallback.value) {
+    return fallbackWilayas.value
+  }
+  
+  if (wilayasQuery.data.value?.algerianWilayas) {
+    return wilayasQuery.data.value.algerianWilayas.map(wilaya => ({
+      ...wilaya,
+      title: `${wilaya.nameAr} (${wilaya.wilayaId})`
+    }))
+  }
+  
+  // If GraphQL failed, use fallback
+  if (wilayasQuery.error.value) {
+    console.warn('GraphQL error for wilayas, using fallback:', wilayasQuery.error.value)
+    isUsingFallback.value = true
+    fallbackWilayas.value = ALGERIA_STATES.map(state => ({
+      id: state.id,
+      wilayaId: state.code,
+      nameAr: state.nameAr,
+      nameFr: state.nameFr,
+      nameEn: state.name,
+      code: state.code,
+      isActive: true,
+      freeShippingMinimum: null,
+      title: `${state.nameAr} (${state.code})`
+    }))
+    return fallbackWilayas.value
+  }
+  
+  return []
 })
 
 const shippingCost = ref(0)
@@ -489,11 +556,6 @@ const deliveryTypes = [
   { title: 'Express', value: 'express' }
 ]
 
-const paymentMethods = [
-  { title: 'Cash on Delivery (COD)', value: 'cod' },
-  { title: 'Credit Card', value: 'credit_card' },
-  { title: 'Bank Transfer', value: 'bank_transfer' }
-]
 
 const canPlaceOrder = computed(() => {
   return (
@@ -510,7 +572,7 @@ const canPlaceOrder = computed(() => {
   )
 })
 
-// Validation rules
+// Validation rules with Algerian patterns
 const rules = {
   required: value => !!value || 'هذا الحقل مطلوب',
   email: value => {
@@ -518,8 +580,20 @@ const rules = {
     return pattern.test(value) || 'البريد الإلكتروني غير صحيح'
   },
   phone: value => {
-    const pattern = /^[0-9]{8,10}$/
-    return pattern.test(value) || 'رقم الهاتف غير صحيح'
+    // Algerian phone number pattern: (0|213)?[5-7][0-9]{8}
+    const algerianPhonePattern = /^(0|213)?[5-7][0-9]{8}$/
+    if (!algerianPhonePattern.test(value)) {
+      return 'رقم الهاتف غير صحيح. يجب أن يكون على شكل 0XXXXXXXXX أو +213XXXXXXXXX'
+    }
+    return true
+  },
+  postalCode: value => {
+    // Algerian postal code pattern: 5 digits
+    const algerianPostalCodePattern = /^[0-9]{5}$/
+    if (!algerianPostalCodePattern.test(value)) {
+      return 'الرمز البريدي غير صحيح. يجب أن يكون 5 أرقام'
+    }
+    return true
   }
 }
 
@@ -549,6 +623,94 @@ function onShippingPriceUpdated(cost) {
   shippingCost.value = cost
 }
 
+// GraphQL Mutation for shipping calculation
+const { mutate: calculateShipping } = useMutation(CALCULATE_SHIPPING_MUTATION)
+
+// GraphQL Mutations for coupon validation and order creation
+const VALIDATE_COUPON_MUTATION = gql`
+  mutation ValidateCoupon($code: String!, $orderValue: Float!) {
+    validateCoupon(code: $code, orderValue: $orderValue) {
+      success
+      message
+      coupon {
+        id
+        code
+        name
+        discountType
+        discountValue
+        maxDiscount
+        isActive
+        usedCount
+        usageLimit
+        usageLimitPerUser
+        minOrderValue
+        maxOrderValue
+        validFrom
+        validTo
+      }
+      discountAmount
+    }
+  }
+`;
+
+const CREATE_ORDER_MUTATION = gql`
+  mutation CreateOrder($input: OrderInput!) {
+    createOrder(input: $input) {
+      success
+      message
+      order {
+        id
+        orderNumber
+        totalAmount
+        status
+      }
+    }
+  }
+`;
+
+const { mutate: validateCoupon } = useMutation(VALIDATE_COUPON_MUTATION);
+const { mutate: createOrder } = useMutation(CREATE_ORDER_MUTATION);
+
+// Query for payment methods
+const { result: paymentMethodsResult } = useQuery(PAYMENT_METHODS_QUERY);
+
+const paymentMethods = computed(() => {
+  if (paymentMethodsResult.value?.paymentMethods) {
+    return paymentMethodsResult.value.paymentMethods
+      .filter(method => method.isActive)
+      .map(method => ({
+        title: method.name,
+        value: method.type
+      }));
+  }
+  return [
+    { title: 'Cash on Delivery (COD)', value: 'cod' },
+    { title: 'Credit Card', value: 'credit_card' },
+    { title: 'Bank Transfer', value: 'bank_transfer' }
+  ];
+});
+
+// Loading states for double-click prevention
+const isPlacingOrder = ref(false)
+const isValidatingCoupon = ref(false)
+const isCalculatingShipping = ref(false)
+
+// Double-click prevention function
+const preventDoubleClick = (loadingRef, callback) => {
+  return async (...args) => {
+    if (loadingRef.value) {
+      console.log('⚠️ Double-click prevented')
+      return
+    }
+    loadingRef.value = true
+    try {
+      await callback(...args)
+    } finally {
+      loadingRef.value = false
+    }
+  }
+}
+
 async function updateShippingCost() {
   if (!shippingInfo.value.wilayaId || !shippingInfo.value.deliveryType) {
     shippingCost.value = 0
@@ -556,24 +718,19 @@ async function updateShippingCost() {
   }
 
   try {
-    const response = await fetch('/api/shipping/calculate/', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        wilaya_id: shippingInfo.value.wilayaId,
-        delivery_type: shippingInfo.value.deliveryType,
-        order_total: cartStore.totalBeforeShipping,
-        order_weight: calculateOrderWeight(),
-        order_volume: calculateOrderVolume()
-      })
+    const result = await calculateShipping({
+      input: {
+        wilayaId: shippingInfo.value.wilayaId,
+        deliveryType: shippingInfo.value.deliveryType,
+        orderTotal: cartStore.totalBeforeShipping,
+        orderWeight: calculateOrderWeight(),
+        orderVolume: calculateOrderVolume()
+      }
     })
 
-    if (response.ok) {
-      const data = await response.json()
-      shippingCost.value = data.is_free_shipping ? 0 : data.shipping_cost
+    if (result?.data?.calculateShipping?.success) {
+      const data = result.data.calculateShipping
+      shippingCost.value = data.shippingCost || 0
     }
   } catch (error) {
     console.error('Error calculating shipping:', error)
@@ -600,73 +757,31 @@ function calculateOrderVolume() {
 // Coupon methods
 async function applyCoupon() {
   if (!couponCode.value.trim()) {
-    couponError.value = 'يرجى إدخال رمز الكوبون'
+    couponError.value = 'يرجى إدخال كود الكوبون'
     return
   }
 
-  isApplyingCoupon.value = true
   couponError.value = ''
 
   try {
-    const response = await fetch('/graphql', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `
-          query ValidateCoupon($code: String!, $orderValue: Float!) {
-            validateCoupon(code: $code, orderValue: $orderValue) {
-              success
-              message
-              coupon {
-                id
-                code
-                name
-                discountType
-                discountValue
-                maxDiscount
-                isActive
-                usedCount
-                usageLimit
-                usageLimitPerUser
-                minOrderValue
-                maxOrderValue
-                validFrom
-                validTo
-              }
-              discountAmount
-            }
-          }
-        `,
-        variables: {
-          code: couponCode.value.trim().toUpperCase(),
-          orderValue: cartStore.totalBeforeShipping
-        }
-      })
+    const result = await validateCoupon({
+      code: couponCode.value.trim().toUpperCase(),
+      orderValue: cartStore.totalBeforeShipping
     })
 
-    const result = await response.json()
-    
-    if (result.errors) {
-      throw new Error(result.errors[0].message)
-    }
-
-    const { validateCoupon } = result.data
-    
-    if (validateCoupon.success) {
-      appliedCoupon.value = validateCoupon.coupon
-      couponDiscount.value = validateCoupon.discountAmount
+    if (result?.data?.validateCoupon?.success) {
+      const data = result.data.validateCoupon
+      appliedCoupon.value = data.coupon
+      couponDiscount.value = data.discountAmount
       
       toast({
         title: '✅ تم تطبيق الكوبون',
-        text: `خصم ${formatCurrency(validateCoupon.discountAmount)} تم تطبيقه على طلبك`,
+        text: `خصم ${data.discountAmount} دج`,
         color: 'success',
         timeout: 3000
       })
     } else {
-      couponError.value = validateCoupon.message
+      couponError.value = result?.data?.validateCoupon?.message || 'فشل تطبيق الكوبون'
     }
   } catch (error) {
     console.error('Error applying coupon:', error)
@@ -694,7 +809,7 @@ async function placeOrder() {
     return
   }
 
-  isPlacingOrder.value = true
+  // isPlacingOrder.value is handled by preventDoubleClick wrapper
 
   try {
     const orderData = {
@@ -718,57 +833,26 @@ async function placeOrder() {
       }))
     }
 
-    const response = await fetch('/graphql', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `
-          mutation CreateOrder($input: OrderInput!) {
-            createOrder(input: $input) {
-              success
-              message
-              order {
-                id
-                orderNumber
-                totalAmount
-                status
-              }
-            }
-          }
-        `,
-        variables: {
-          input: orderData
-        }
-      })
-    })
+    const result = await createOrder({ input: orderData })
 
-    const result = await response.json()
-    
-    if (result.errors) {
-      throw new Error(result.errors[0].message)
-    }
-
-    const { createOrder } = result.data
-    
-    if (createOrder.success) {
+    if (result?.data?.createOrder?.success) {
+      const order = result.data.createOrder.order
+      
       // Clear cart
       await cartStore.clearCart()
       
       // Show success message
       toast({
         title: '✅ تم إنشاء الطلب',
-        text: `طلب رقم ${createOrder.order.orderNumber} تم إنشاؤه بنجاح`,
+        text: `طلب رقم ${order.orderNumber} تم إنشاؤه بنجاح`,
         color: 'success',
         timeout: 5000
       })
       
       // Redirect to order confirmation
-      router.push(`/orders/${createOrder.order.id}`)
+      router.push(`/orders/${order.id}`)
     } else {
-      throw new Error(createOrder.message)
+      throw new Error(result?.data?.createOrder?.message || 'فشل إنشاء الطلب')
     }
   } catch (error) {
     console.error('Error placing order:', error)
@@ -779,9 +863,8 @@ async function placeOrder() {
       color: 'error',
       timeout: 5000
     })
-  } finally {
-    isPlacingOrder.value = false
   }
+  // isPlacingOrder.value = false is handled by preventDoubleClick wrapper
 }
 
 function getAuthToken() {

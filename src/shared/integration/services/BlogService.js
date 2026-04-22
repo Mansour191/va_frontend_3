@@ -1,8 +1,8 @@
 import i18n from '@/plugins/i18n';
+import { BLOG_POSTS_QUERY } from '@/integration/graphql/blog.graphql';
 
 class BlogService {
   constructor() {
-    this.apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
     this.cache = new Map();
     this.cacheTTL = 5 * 60 * 1000; // 5 دقائق
   }
@@ -18,31 +18,63 @@ class BlogService {
     }
 
     try {
-      // جلب البيانات من الـ API المحلي الجديد
-      const url = `${this.apiBaseUrl}/blog/posts/?limit=${limit}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const data = await response.json();
+      // جلب البيانات باستخدام GraphQL
+      const { default: apolloClient } = await import('@/shared/plugins/apolloPlugin');
       
-      // التعامل مع نتائج DRF (paginated or simple list)
-      const results = data.results || data;
-      const posts = this._transformPosts(results);
+      const result = await apolloClient.query({
+        query: BLOG_POSTS_QUERY,
+        variables: {
+          first: limit,
+          orderBy: '-createdAt'
+        }
+      });
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+      
+      const posts = this._transformGraphQLPosts(result.data?.blogPosts?.edges || []);
       
       this._setCache(cacheKey, posts);
       return posts;
     } catch (error) {
-      console.warn('⚠️ Local Blog API failed, using fallback data:', error.message);
+      console.warn('⚠️ GraphQL Blog API failed, using fallback data:', error.message);
       return this._getFallbackPosts(limit);
     }
   }
 
   /**
-   * تحويل بيانات الـ API إلى التنسيق المستخدم في الواجهة
+   * تحويل بيانات GraphQL إلى التنسيق المستخدم في الواجهة
+   */
+  _transformGraphQLPosts(edges) {
+    const lang = i18n.global.locale.value || i18n.global.locale;
+    return edges.map(edge => this._transformGraphQLPost(edge.node, lang));
+  }
+
+  /**
+   * تحويل بيانات منتج واحد من GraphQL
+   */
+  _transformGraphQLPost(post, lang = null) {
+    if (!post) return null;
+    
+    const currentLang = lang || i18n.global.locale.value || i18n.global.locale;
+    
+    return {
+      id: post.id,
+      title: currentLang === 'ar' ? post.titleAr : post.titleEn,
+      title_ar: post.titleAr,
+      title_en: post.titleEn,
+      slug: post.slug,
+      image: post.image || 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?q=80&w=800&auto=format&fit=crop',
+      published: post.publishedAt,
+      summary: currentLang === 'ar' ? post.summaryAr : post.summaryEn,
+      category: post.categoryName,
+      tags: post.tags || []
+    };
+  }
+
+  /**
+   * تحويل بيانات الـ API إلى التنسيق المستخدم في الواجهة (Legacy)
    */
   _transformPosts(results) {
     const lang = i18n.global.locale.value || i18n.global.locale;

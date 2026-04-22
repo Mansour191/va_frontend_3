@@ -97,10 +97,13 @@ const policyItems = ref([]);
 
 const fetchPolicyItems = async () => {
   try {
-    const response = await fetch('/api/shipping-policy/items');
-    if (response.ok) {
-      const data = await response.json();
-      policyItems.value = data.map(item => ({
+    const { SHIPPING_POLICY_ITEMS_QUERY } = await import('@/integration/graphql/common.graphql');
+    const { useQuery } = await import('@apollo/client');
+    
+    const { data, error } = await useQuery(SHIPPING_POLICY_ITEMS_QUERY);
+    
+    if (data.value && !error.value) {
+      policyItems.value = data.value.shippingPolicyItems.map(item => ({
         icon: item.icon || 'mdi-truck',
         title: item.title,
         description: item.description

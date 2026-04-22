@@ -341,22 +341,6 @@ const fetchLatestPosts = async () => {
     loadingPosts.value = false;
   }
 };
-  // Prevent duplicate requests
-  if (loadingProducts.value) {
-    console.log('⏳ Products fetch already in progress, skipping...');
-    return;
-  }
-  
-  // Use the composable correctly - no parameters for featured products
-  try {
-    // useProducts() will automatically fetch all products (no category filter)
-    const productsResult = await fetchProducts();
-    console.log('✅ Featured products fetched via GraphQL');
-  } catch (error) {
-    console.error('❌ Error fetching featured products:', error);
-    productsError.value = error.message;
-  }
-};
 
 // Fetch data on mount
 onMounted(() => {

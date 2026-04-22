@@ -103,7 +103,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
   })
 
   const unreadNotifications = computed(() => {
-    return notifications.value.filter(n => !n.is_read)
+    return notifications.value.filter(n => !n.isRead)
   })
 
   const notificationsByCategory = computed(() => {
@@ -142,15 +142,15 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
 
     if (filters.value.isRead !== null) {
-      filtered = filtered.filter(n => n.is_read === filters.value.isRead)
+      filtered = filtered.filter(n => n.isRead === filters.value.isRead)
     }
 
     if (filters.value.dateFrom) {
-      filtered = filtered.filter(n => new Date(n.created_at) >= new Date(filters.value.dateFrom))
+      filtered = filtered.filter(n => new Date(n.createdAt) >= new Date(filters.value.dateFrom))
     }
 
     if (filters.value.dateTo) {
-      filtered = filtered.filter(n => new Date(n.created_at) <= new Date(filters.value.dateTo))
+      filtered = filtered.filter(n => new Date(n.createdAt) <= new Date(filters.value.dateTo))
     }
 
     return filtered
@@ -168,20 +168,31 @@ export const useNotificationsStore = defineStore('notifications', () => {
     isLoading.value = true
 
     try {
-      const response = await fetch('/api/notifications/', {
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-          'Content-Type': 'application/json',
-        },
-      })
+      const query = `
+        query {
+          myNotifications {
+            id
+            title
+            message
+            type
+            category
+            priority
+            isRead
+            readAt
+            actionUrl
+            actionText
+            createdAt
+            updatedAt
+          }
+        }
+      `
 
-      if (response.ok) {
-        const data = await response.json()
-        notifications.value = data.results || data
-        updateUnreadCount()
-        lastFetched.value = now
-        saveToStorage()
-      }
+      const response = await makeGraphQLRequest(query)
+      
+      notifications.value = response.myNotifications || []
+      updateUnreadCount()
+      lastFetched.value = now
+      saveToStorage()
     } catch (error) {
       console.error('Error fetching notifications:', error)
     } finally {
@@ -192,20 +203,31 @@ export const useNotificationsStore = defineStore('notifications', () => {
   async function markAsRead(notificationId) {
     try {
       const notification = notifications.value.find(n => n.id === notificationId)
-      if (notification && !notification.is_read) {
-        notification.is_read = true
-        notification.read_at = new Date().toISOString()
-        
-        await fetch(`/api/notifications/${notificationId}/mark-read/`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${getAuthToken()}`,
-            'Content-Type': 'application/json',
-          },
-        })
+      if (notification && !notification.isRead) {
+        const mutation = `
+          mutation MarkNotificationAsRead($notificationId: ID!) {
+            markNotificationAsRead(notificationId: $notificationId) {
+              success
+              message
+              notification {
+                id
+                isRead
+                readAt
+              }
+            }
+          }
+        `
 
-        updateUnreadCount()
-        saveToStorage()
+        const variables = { notificationId }
+        const response = await makeGraphQLRequest(mutation, variables)
+        
+        if (response.markNotificationAsRead.success) {
+          notification.isRead = true
+          notification.readAt = new Date().toISOString()
+          
+          updateUnreadCount()
+          saveToStorage()
+        }
       }
     } catch (error) {
       console.error('Error marking notification as read:', error)
@@ -215,29 +237,35 @@ export const useNotificationsStore = defineStore('notifications', () => {
   async function markAllAsRead() {
     try {
       const unreadIds = notifications.value
-        .filter(n => !n.is_read)
+        .filter(n => !n.isRead)
         .map(n => n.id)
 
       if (unreadIds.length === 0) return
 
-      await fetch('/api/notifications/mark-all-read/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ notification_ids: unreadIds }),
-      })
-
-      notifications.value.forEach(n => {
-        if (!n.is_read) {
-          n.is_read = true
-          n.read_at = new Date().toISOString()
+      const mutation = `
+        mutation MarkAllNotificationsAsRead($notificationIds: [ID!]!) {
+          markAllNotificationsAsRead(notificationIds: $notificationIds) {
+            success
+            message
+            updatedCount
+          }
         }
-      })
+      `
 
-      updateUnreadCount()
-      saveToStorage()
+      const variables = { notificationIds: unreadIds }
+      const response = await makeGraphQLRequest(mutation, variables)
+      
+      if (response.markAllNotificationsAsRead.success) {
+        notifications.value.forEach(n => {
+          if (!n.isRead) {
+            n.isRead = true
+            n.readAt = new Date().toISOString()
+          }
+        })
+
+        updateUnreadCount()
+        saveToStorage()
+      }
     } catch (error) {
       console.error('Error marking all notifications as read:', error)
     }
@@ -249,18 +277,25 @@ export const useNotificationsStore = defineStore('notifications', () => {
       if (index !== -1) {
         const notification = notifications.value[index]
         
-        await fetch(`/api/notifications/${notificationId}/`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${getAuthToken()}`,
-          },
-        })
+        const mutation = `
+          mutation DeleteNotification($notificationId: ID!) {
+            deleteNotification(notificationId: $notificationId) {
+              success
+              message
+            }
+          }
+        `
 
-        notifications.value.splice(index, 1)
-        if (!notification.is_read) {
-          updateUnreadCount()
+        const variables = { notificationId }
+        const response = await makeGraphQLRequest(mutation, variables)
+        
+        if (response.deleteNotification.success) {
+          notifications.value.splice(index, 1)
+          if (!notification.isRead) {
+            updateUnreadCount()
+          }
+          saveToStorage()
         }
-        saveToStorage()
       }
     } catch (error) {
       console.error('Error deleting notification:', error)
@@ -269,17 +304,23 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
   async function clearAll() {
     try {
-      await fetch('/api/notifications/clear-all/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-          'Content-Type': 'application/json',
-        },
-      })
+      const mutation = `
+        mutation ClearAllNotifications {
+          clearAllNotifications {
+            success
+            message
+            clearedCount
+          }
+        }
+      `
 
-      notifications.value = []
-      unreadCount.value = 0
-      saveToStorage()
+      const response = await makeGraphQLRequest(mutation)
+      
+      if (response.clearAllNotifications.success) {
+        notifications.value = []
+        unreadCount.value = 0
+        saveToStorage()
+      }
     } catch (error) {
       console.error('Error clearing all notifications:', error)
     }
@@ -334,7 +375,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
   }
 
   function updateUnreadCount() {
-    unreadCount.value = notifications.value.filter(n => !n.is_read).length
+    unreadCount.value = notifications.value.filter(n => !n.isRead).length
   }
 
   function setFilters(newFilters) {
@@ -348,6 +389,37 @@ export const useNotificationsStore = defineStore('notifications', () => {
       isRead: null,
       dateFrom: null,
       dateTo: null,
+    }
+  }
+
+  async function makeGraphQLRequest(query, variables = {}) {
+    try {
+      const response = await fetch('/graphql/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({
+          query,
+          variables
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message)
+      }
+      
+      return result.data
+    } catch (error) {
+      console.error('❌ GraphQL request error:', error)
+      throw error
     }
   }
 
@@ -426,11 +498,26 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
     pollingInterval.value = setInterval(async () => {
       try {
-        const response = await fetch('/api/notifications/unread/', {
-          headers: {
-            'Authorization': `Bearer ${getAuthToken()}`,
-          },
-        })
+        const query = `
+          query {
+            unreadNotifications {
+              id
+              title
+              message
+              type
+              category
+              priority
+              isRead
+              readAt
+              actionUrl
+              actionText
+              createdAt
+              updatedAt
+            }
+          }
+        `
+
+        const response = await makeGraphQLRequest(query)
 
         if (response.ok) {
           const newNotifications = await response.json()

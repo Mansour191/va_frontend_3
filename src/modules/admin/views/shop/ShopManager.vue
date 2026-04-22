@@ -399,17 +399,33 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
+import { useQuery, useMutation } from '@apollo/client';
 import ShopService from '@/services/ShopService';
+import { useErrorBoundary } from '@/shared/composables/useErrorBoundary';
+
+// GraphQL queries and mutations
+import {
+  GET_SHOP_STATISTICS,
+  GET_RECENT_PRODUCTS,
+  GET_ACTIVE_PROMOTIONS,
+  GET_RECENT_ORDERS,
+  GET_RECENT_REVIEWS,
+  EXPORT_SHOP_DATA,
+  REFRESH_SHOP_STATISTICS,
+  SHOP_STATISTICS_UPDATED
+} from '@/integration/graphql/shop';
 
 // Store and i18n
 const store = useStore();
 const { t } = useI18n();
+const errorBoundary = useErrorBoundary();
 
 // State
 const loading = ref(false);
+const refreshing = ref(false);
 
 // Shop data
 const recentProducts = ref([]);
@@ -429,162 +445,246 @@ const shopStats = reactive({
   conversionRate: 0
 });
 
+// GraphQL Queries
+const { 
+  result: shopStatsResult,
+  loading: shopStatsLoading,
+  error: shopStatsError,
+  refetch: refetchShopStats
+} = useQuery(GET_SHOP_STATISTICS, {
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+const { 
+  result: recentProductsResult,
+  loading: productsLoading,
+  error: productsError,
+  refetch: refetchProducts
+} = useQuery(GET_RECENT_PRODUCTS, {
+  variables: { limit: 5 },
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+const { 
+  result: activePromotionsResult,
+  loading: promotionsLoading,
+  error: promotionsError,
+  refetch: refetchPromotions
+} = useQuery(GET_ACTIVE_PROMOTIONS, {
+  variables: { limit: 5 },
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+const { 
+  result: recentOrdersResult,
+  loading: ordersLoading,
+  error: ordersError,
+  refetch: refetchOrders
+} = useQuery(GET_RECENT_ORDERS, {
+  variables: { limit: 5 },
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+const { 
+  result: recentReviewsResult,
+  loading: reviewsLoading,
+  error: reviewsError,
+  refetch: refetchReviews
+} = useQuery(GET_RECENT_REVIEWS, {
+  variables: { limit: 5 },
+  errorPolicy: 'all',
+  fetchPolicy: 'cache-and-network'
+});
+
+// Computed properties for reactive data
+const shopStats = computed(() => {
+  if (shopStatsResult.value?.data?.shopStatistics) {
+    return shopStatsResult.value.data.shopStatistics;
+  }
+  // Fallback data
+  return {
+    totalProducts: 0,
+    activePromotions: 0,
+    averageRating: 0,
+    totalRevenue: 0,
+    todayOrders: 0,
+    todayRevenue: 0,
+    newCustomers: 0,
+    conversionRate: 0
+  };
+});
+
+const recentProducts = computed(() => {
+  if (recentProductsResult.value?.data?.recentProducts) {
+    return recentProductsResult.value.data.recentProducts;
+  }
+  return [];
+});
+
+const activePromotions = computed(() => {
+  if (activePromotionsResult.value?.data?.activePromotions) {
+    return activePromotionsResult.value.data.activePromotions;
+  }
+  return [];
+});
+
+const recentOrders = computed(() => {
+  if (recentOrdersResult.value?.data?.recentOrders) {
+    return recentOrdersResult.value.data.recentOrders.map(order => ({
+      id: order.id,
+      customerName: order.customer?.name || 'عميل غير معروف',
+      total: order.total,
+      status: order.status,
+      date: order.createdAt
+    }));
+  }
+  return [];
+});
+
+const recentReviews = computed(() => {
+  if (recentReviewsResult.value?.data?.recentReviews) {
+    return recentReviewsResult.value.data.recentReviews.map(review => ({
+      id: review.id,
+      customerName: review.customer?.name || 'عميل غير معروف',
+      customerAvatar: review.customer?.avatar || '/default-avatar.png',
+      rating: review.rating,
+      comment: review.comment,
+      productName: review.product?.name || 'منتج غير محدد',
+      status: review.status,
+      date: review.createdAt
+    }));
+  }
+  return [];
+});
+
+// Combined loading state
+const loading = computed(() => {
+  return shopStatsLoading.value || 
+         productsLoading.value || 
+         promotionsLoading.value || 
+         ordersLoading.value || 
+         reviewsLoading.value;
+});
+
+// Error handling
+const hasErrors = computed(() => {
+  return !!(shopStatsError.value || 
+            productsError.value || 
+            promotionsError.value || 
+            ordersError.value || 
+            reviewsError.value);
+});
+
 // Methods
 const loadShopData = async () => {
-  try {
+  return errorBoundary.execute(async () => {
     loading.value = true;
     
-    // Load shop statistics
     try {
-      const statsResponse = await ShopService.getShopStats();
-      if (statsResponse.success) {
-        Object.assign(shopStats, statsResponse.data);
-      } else {
-        // Fallback to direct API
-        const statsData = await fetch('/api/shop/statistics');
-        if (statsData.ok) {
-          const data = await statsData.json();
-          Object.assign(shopStats, data);
-        }
-      }
-    } catch (statsError) {
-      console.error('Failed to load shop stats:', statsError);
-      // Try direct API as fallback
-      try {
-        const statsData = await fetch('/api/shop/statistics');
-        if (statsData.ok) {
-          const data = await statsData.json();
-          Object.assign(shopStats, data);
-        }
-      } catch (directError) {
-        console.error('Direct API also failed:', directError);
-      }
+      await Promise.all([
+        refetchShopStats(),
+        refetchProducts(),
+        refetchPromotions(),
+        refetchOrders(),
+        refetchReviews()
+      ]);
+      
+      console.log('✅ Shop data loaded successfully via GraphQL');
+    } catch (error) {
+      console.error('❌ Error loading shop data:', error);
+      
+      // Show error notification
+      store.dispatch('notifications/showNotification', {
+        type: 'error',
+        message: t('shop.loadError', 'فشل في تحميل بيانات المتجر')
+      });
+      
+      throw error;
+    } finally {
+      loading.value = false;
     }
-
-    // Load recent products
-    try {
-      const productsResponse = await ShopService.getRecentProducts({ limit: 5 });
-      if (productsResponse.success) {
-        recentProducts.value = productsResponse.data.products;
-      } else {
-        // Fallback to direct API
-        const productsData = await fetch('/api/products/recent?limit=5');
-        if (productsData.ok) {
-          recentProducts.value = await productsData.json();
-        }
-      }
-    } catch (productsError) {
-      console.error('Failed to load recent products:', productsError);
-    }
-
-    // Load active promotions
-    try {
-      const promotionsResponse = await ShopService.getActivePromotions({ limit: 5 });
-      if (promotionsResponse.success) {
-        activePromotions.value = promotionsResponse.data.promotions;
-      } else {
-        // Fallback to direct API
-        const promotionsData = await fetch('/api/promotions/active?limit=5');
-        if (promotionsData.ok) {
-          activePromotions.value = await promotionsData.json();
-        }
-      }
-    } catch (promotionsError) {
-      console.error('Failed to load active promotions:', promotionsError);
-    }
-
-    // Load recent orders
-    try {
-      const ordersResponse = await ShopService.getRecentOrders({ limit: 5 });
-      if (ordersResponse.success) {
-        recentOrders.value = ordersResponse.data.orders;
-      } else {
-        // Fallback to direct API
-        const ordersData = await fetch('/api/orders/recent?limit=5');
-        if (ordersData.ok) {
-          const data = await ordersData.json();
-          recentOrders.value = data.map(order => ({
-            id: order.id,
-            customer: order.customer?.name || 'عميل غير معروف',
-            total: order.total_amount,
-            status: order.status,
-            date: order.created_at
-          }));
-        }
-      }
-    } catch (ordersError) {
-      console.error('Failed to load recent orders:', ordersError);
-    }
-
-    // Load recent reviews
-    try {
-      const reviewsResponse = await ShopService.getRecentReviews({ limit: 5 });
-      if (reviewsResponse.success) {
-        recentReviews.value = reviewsResponse.data.reviews;
-      } else {
-        // Fallback to direct API
-        const reviewsData = await fetch('/api/reviews/recent?limit=5');
-        if (reviewsData.ok) {
-          const data = await reviewsData.json();
-          recentReviews.value = data.map(review => ({
-            id: review.id,
-            customer: review.customer?.name || 'عميل غير معروف',
-            rating: review.rating,
-            comment: review.comment,
-            product: review.product?.name || 'منتج غير محدد',
-            date: review.created_at
-          }));
-        }
-      }
-    } catch (reviewsError) {
-      console.error('Failed to load recent reviews:', reviewsError);
-    }
-
-  } catch (error) {
-    console.error('Error loading shop data:', error);
-    store.dispatch('notifications/showNotification', {
-      type: 'error',
-      message: t('shop.loadError', 'فشل في تحميل بيانات المتجر')
-    });
-  } finally {
-    loading.value = false;
-  }
+  }, 'Shop data loading');
 };
 
 const refreshData = async () => {
-  await loadShopData();
-  store.dispatch('notifications/showNotification', {
-    type: 'success',
-    message: t('shop.refreshSuccess', 'تم تحديث البيانات بنجاح')
-  });
-};
-
-const exportShopData = async () => {
-  try {
-    const response = await ShopService.exportShopData();
+  return errorBoundary.execute(async () => {
+    refreshing.value = true;
     
-    if (response.success) {
-      // Create download link
-      const blob = new Blob([response.data], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `shop_data_${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
+    try {
+      await loadShopData();
       
       store.dispatch('notifications/showNotification', {
         type: 'success',
-        message: t('shop.exportSuccess', 'تم تصدير البيانات بنجاح')
+        message: t('shop.refreshSuccess', 'تم تحديث البيانات بنجاح')
       });
+    } catch (error) {
+      console.error('❌ Error refreshing shop data:', error);
+      
+      store.dispatch('notifications/showNotification', {
+        type: 'error',
+        message: t('shop.refreshError', 'فشل في تحديث البيانات')
+      });
+      
+      throw error;
+    } finally {
+      refreshing.value = false;
     }
-  } catch (error) {
-    console.error('Error exporting shop data:', error);
-    store.dispatch('notifications/showNotification', {
-      type: 'error',
-      message: t('shop.exportError', 'فشل في تصدير البيانات')
-    });
-  }
+  }, 'Shop data refresh');
+};
+
+const { mutate: exportShopDataMutation } = useMutation(EXPORT_SHOP_DATA);
+
+const exportShopData = async () => {
+  return errorBoundary.execute(async () => {
+    try {
+      const result = await exportShopDataMutation({
+        variables: {
+          format: 'csv',
+          filters: {
+            dateRange: {
+              start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              end: new Date().toISOString().split('T')[0]
+            }
+          }
+        },
+        errorPolicy: 'all'
+      });
+      
+      if (result.data?.exportShopData?.success) {
+        const exportData = result.data.exportShopData;
+        
+        // Create download link
+        const response = await fetch(exportData.downloadUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = exportData.filename || `shop_data_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        store.dispatch('notifications/showNotification', {
+          type: 'success',
+          message: t('shop.exportSuccess', 'تم تصدير البيانات بنجاح')
+        });
+      } else {
+        throw new Error(result.errors?.[0]?.message || 'Export failed');
+      }
+    } catch (error) {
+      console.error('❌ Error exporting shop data:', error);
+      
+      store.dispatch('notifications/showNotification', {
+        type: 'error',
+        message: t('shop.exportError', 'فشل في تصدير البيانات')
+      });
+      
+      throw error;
+    }
+  }, 'Shop data export');
 };
 
 // Utility methods

@@ -7,6 +7,8 @@ import { ref, reactive } from 'vue';
 import { useStore } from 'vuex';
 import { useQuery } from '@vue/apollo-composable';
 import { ORDER_TIMELINE_QUERY } from '@/integration/graphql/orders.graphql';
+import { subscriptionManager } from '@/composables/useSubscriptionManager';
+import { websocketManager } from '@/shared/utils/websocketManager';
 
 class TimelineNotificationService {
   constructor() {
@@ -14,11 +16,13 @@ class TimelineNotificationService {
     this.lastTimelineEntry = new Map();
     this.notificationQueue = ref([]);
     this.isProcessing = ref(false);
+    this.serviceName = 'TimelineNotificationService';
     
     // WebSocket connection for real-time updates
-    this.wsConnection = null;
+    this.wsConnectionName = 'timeline_notifications';
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
+    this.pollIntervals = new Map();
   }
 
   /**
@@ -50,41 +54,41 @@ class TimelineNotificationService {
   /**
    * Connect to WebSocket for real-time timeline updates
    */
-  connectWebSocket() {
-    if (this.wsConnection && this.wsConnection.readyState === WebSocket.OPEN) {
-      return;
-    }
-
+  async connectWebSocket() {
     try {
-      const wsUrl = `${process.env.VUE_APP_WS_URL}/timeline/`;
-      this.wsConnection = new WebSocket(wsUrl);
+      const wsUrl = `${process.env.VUE_APP_WS_URL || 'ws://127.0.0.1:8000'}/timeline/`;
       
-      this.wsConnection.onopen = () => {
-        console.log('Timeline WebSocket connected');
-        this.reconnectAttempts = 0;
-        
-        // Subscribe to all active orders
-        this.subscribers.forEach((callbacks, orderId) => {
-          this.wsConnection.send(JSON.stringify({
-            type: 'subscribe',
-            orderId: orderId
-          }));
-        });
-      };
-      
-      this.wsConnection.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        this.handleTimelineUpdate(data);
-      };
-      
-      this.wsConnection.onclose = () => {
-        console.log('Timeline WebSocket disconnected');
-        this.attemptReconnect();
-      };
-      
-      this.wsConnection.onerror = (error) => {
-        console.error('Timeline WebSocket error:', error);
-      };
+      this.wsConnection = await websocketManager.getConnection(
+        this.wsConnectionName,
+        wsUrl,
+        {
+          purpose: 'timeline_notifications',
+          reconnect: true,
+          maxReconnectAttempts: this.maxReconnectAttempts,
+          onOpen: () => {
+            console.log('Timeline WebSocket connected');
+            this.reconnectAttempts = 0;
+            
+            // Subscribe to all active orders
+            this.subscribers.forEach((callbacks, orderId) => {
+              websocketManager.sendMessage(this.wsConnectionName, JSON.stringify({
+                type: 'subscribe',
+                orderId: orderId
+              }));
+            });
+          },
+          onMessage: (event) => {
+            const data = JSON.parse(event.data);
+            this.handleTimelineUpdate(data);
+          },
+          onClose: () => {
+            console.log('Timeline WebSocket disconnected');
+          },
+          onError: (error) => {
+            console.error('Timeline WebSocket error:', error);
+          }
+        }
+      );
       
     } catch (error) {
       console.error('Failed to connect to WebSocket:', error);
@@ -231,6 +235,46 @@ class TimelineNotificationService {
   }
 
   /**
+   * Start polling for timeline updates
+   * @param {string} orderId - Order ID to poll for
+   * @param {number} interval - Polling interval in milliseconds
+   */
+  startPolling(orderId, interval = 30000) {
+    // Clear existing interval for this order
+    this.stopPolling(orderId);
+    
+    const intervalId = setInterval(() => {
+      this.pollTimelineUpdates(orderId);
+    }, interval);
+    
+    // Track in subscription manager
+    const trackedInterval = subscriptionManager.registerInterval(
+      `timeline_poll_${orderId}`,
+      intervalId,
+      {
+        componentName: this.serviceName,
+        type: 'timeline_polling'
+      }
+    );
+    
+    this.pollIntervals.set(orderId, trackedInterval);
+    console.log(`📊 Started polling for order ${orderId} every ${interval}ms`);
+  }
+
+  /**
+   * Stop polling for timeline updates
+   * @param {string} orderId - Order ID to stop polling for
+   */
+  stopPolling(orderId) {
+    const trackedInterval = this.pollIntervals.get(orderId);
+    if (trackedInterval) {
+      trackedInterval.clear();
+      this.pollIntervals.delete(orderId);
+      console.log(`⏹️ Stopped polling for order ${orderId}`);
+    }
+  }
+
+  /**
    * Get unread notifications
    * @returns {Array} Array of unread notifications
    */
@@ -273,17 +317,13 @@ class TimelineNotificationService {
       });
     });
     
-    // Poll for updates as fallback
-    const pollInterval = setInterval(() => {
-      if (!this.wsConnection || this.wsConnection.readyState !== WebSocket.OPEN) {
-        this.pollTimelineUpdates(orderId);
-      }
-    }, 30000); // Poll every 30 seconds
+    // Start polling as fallback
+    this.startPolling(orderId, 30000); // Poll every 30 seconds
     
     // Cleanup on unmount
     const cleanup = () => {
       unsubscribe();
-      clearInterval(pollInterval);
+      this.stopPolling(orderId);
     };
     
     return {
@@ -299,6 +339,47 @@ class TimelineNotificationService {
         notifications.value = [];
       },
       cleanup
+    };
+  }
+
+  /**
+   * Cleanup all resources
+   */
+  cleanup() {
+    console.log('🧹 TimelineNotificationService: Cleaning up all resources...');
+    
+    // Stop all polling intervals
+    this.pollIntervals.forEach((trackedInterval, orderId) => {
+      this.stopPolling(orderId);
+    });
+    
+    // Close WebSocket connection
+    if (this.wsConnectionName) {
+      websocketManager.closeConnection(this.wsConnectionName);
+    }
+    
+    // Clear all subscribers
+    this.subscribers.clear();
+    
+    // Clear notifications
+    this.notificationQueue.value = [];
+    
+    // Use subscription manager for cleanup
+    subscriptionManager.cleanupComponent(this.serviceName);
+    
+    console.log('✅ TimelineNotificationService cleanup completed');
+  }
+
+  /**
+   * Get service statistics
+   */
+  getStats() {
+    return {
+      activeSubscribers: this.subscribers.size,
+      activePollingIntervals: this.pollIntervals.size,
+      queuedNotifications: this.notificationQueue.value.length,
+      websocketConnected: this.wsConnection ? 
+        websocketManager.getConnectionStatus(this.wsConnectionName)?.readyState === WebSocket.OPEN : false
     };
   }
 }

@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { useStore } from 'vuex';
 import { client } from '@/shared/plugins/apolloPlugin';
+import { formatDate } from '@/shared/integration/utils/helpers.js';
 import { 
   ALL_USERS_QUERY, 
   TOGGLE_USER_STATUS_MUTATION, 
@@ -250,18 +251,7 @@ export function useUsers() {
     return labels[role] || role;
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
+  
   return {
     // Data
     users,

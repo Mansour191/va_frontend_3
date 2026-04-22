@@ -3,6 +3,7 @@ import ProductAffinity from './ProductAffinity';
 import CollaborativeFilter from './CollaborativeFilter';
 import DataCollector from '@/shared/integration/ai/forecasting/data/DataCollector';
 import AlertService from '@/shared/integration/services/AlertService';
+import { safeJSONParse, safeJSONStringify } from '@/shared/utils/safeParser.js';
 
 class RecommendationService {
   constructor() {
@@ -575,9 +576,6 @@ class RecommendationService {
     // const data = await DataCollector.collectAllData();
     // const orders = data.orders || []; // 👈 غير مستخدم - تم التعليق عليه
 
-    // تحليل مدى تأثير التوصيات (إذا كان لدينا بيانات عن النقرات)
-    // هذه إحصائيات افتراضية
-
     return {
       totalRecommendations: 1250,
       clickThroughRate: 0.35, // 35%
@@ -592,40 +590,7 @@ class RecommendationService {
     };
   }
 
-  // تسجيل تفاعل المستخدم مع توصية
-  async trackRecommendationClick(userId, productId, recommendationType) {
-    const key = `rec_click_${new Date().toISOString().split('T')[0]}`;
-
-    // تخزين في localStorage مؤقتاً (يمكن استبداله بقاعدة بيانات)
-    let stats = JSON.parse(localStorage.getItem(key) || '{}');
-
-    if (!stats[recommendationType]) {
-      stats[recommendationType] = { clicks: 0, conversions: 0 };
-    }
-
-    stats[recommendationType].clicks += 1;
-    localStorage.setItem(key, JSON.stringify(stats));
-
-    return { success: true };
-  }
-
-  // تسجيل تحويل (شراء) بعد توصية
-  async trackRecommendationConversion(userId, productId, recommendationType) {
-    const key = `rec_click_${new Date().toISOString().split('T')[0]}`;
-
-    let stats = JSON.parse(localStorage.getItem(key) || '{}');
-
-    if (!stats[recommendationType]) {
-      stats[recommendationType] = { clicks: 0, conversions: 0 };
-    }
-
-    stats[recommendationType].conversions += 1;
-    localStorage.setItem(key, JSON.stringify(stats));
-
-    return { success: true };
-  }
-
-  // حساب أداء التوصيات
+  // calculating recommendation performance
   async getRecommendationPerformance(days = 30) {
     const performance = {
       daily: [],
@@ -633,14 +598,14 @@ class RecommendationService {
       total: { clicks: 0, conversions: 0, ctr: 0 },
     };
 
-    // تجميع الإحصائيات من الأيام الماضية
+    // aggregating statistics from past days
     for (let i = 0; i < days; i++) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const key = `rec_click_${date.toISOString().split('T')[0]}`;
 
       try {
-        const dayStats = JSON.parse(localStorage.getItem(key) || '{}');
+        const dayStats = safeJSONParse(localStorage.getItem(key), {}, 'RecommendationService.js:getRecommendationPerformance');
 
         // إحصائيات اليوم
         let dayClicks = 0;

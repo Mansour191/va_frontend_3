@@ -555,10 +555,13 @@ const countries = ref([]);
 
 const fetchCountries = async () => {
   try {
-    const response = await fetch('/api/countries');
-    if (response.ok) {
-      const data = await response.json();
-      countries.value = data.map(country => ({
+    const { COUNTRIES_QUERY } = await import('@/integration/graphql/common.graphql');
+    const { useQuery } = await import('@apollo/client');
+    
+    const { data, error } = await useQuery(COUNTRIES_QUERY);
+    
+    if (data.value && !error.value) {
+      countries.value = data.value.countries.map(country => ({
         text: country.name,
         value: country.code
       }));

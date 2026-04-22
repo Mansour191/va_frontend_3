@@ -1,6 +1,6 @@
 // GraphQL Authentication Service - Pure Apollo Client Implementation
 import { gql } from '@apollo/client/core';
-import apolloClient from './apollo.js';
+import { client } from '@/shared/plugins/apolloPlugin';
 
 // GraphQL Mutations and Queries for Authentication
 export const LOGIN_MUTATION = gql`
@@ -125,7 +125,7 @@ export class GraphQLAuthService {
       const accessToken = typeof tokens === 'string' ? tokens : tokens.access;
       if (accessToken) {
         localStorage.setItem('token', accessToken);
-        apolloClient.resetStore(); // Reset cache to update auth state
+        client.resetStore(); // Reset cache to update auth state
       }
       
       // Handle refresh token if available
@@ -146,7 +146,7 @@ export class GraphQLAuthService {
   static clearTokens() {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
-    apolloClient.resetStore(); // Clear cached data
+    client.resetStore(); // Clear cached data
   }
   
   // Authentication methods
@@ -154,7 +154,7 @@ export class GraphQLAuthService {
     console.log('🔐 GraphQL Login Attempt');
     
     try {
-      const response = await apolloClient.mutate({
+      const response = await client.mutate({
         mutation: LOGIN_MUTATION,
         variables: {
           email_or_username: emailOrUsername,
@@ -188,7 +188,7 @@ export class GraphQLAuthService {
     console.log('🔐 GraphQL Register Attempt');
     
     try {
-      const response = await apolloClient.mutate({
+      const response = await client.mutate({
         mutation: REGISTER_MUTATION,
         variables: userData,
         errorPolicy: 'all',
@@ -219,7 +219,7 @@ export class GraphQLAuthService {
     console.log('🔐 GraphQL Update Profile Attempt');
     
     try {
-      const response = await apolloClient.mutate({
+      const response = await client.mutate({
         mutation: UPDATE_PROFILE_MUTATION,
         variables: userData,
         errorPolicy: 'all',
@@ -248,7 +248,7 @@ export class GraphQLAuthService {
     console.log('🔐 GraphQL Fetch Me Attempt');
     
     try {
-      const response = await apolloClient.query({
+      const response = await client.query({
         query: ME_QUERY,
         errorPolicy: 'all',
       });
@@ -271,7 +271,7 @@ export class GraphQLAuthService {
     console.log('🔐 GraphQL Fetch My Profile Attempt');
     
     try {
-      const response = await apolloClient.query({
+      const response = await client.query({
         query: MY_PROFILE_QUERY,
         errorPolicy: 'all',
       });

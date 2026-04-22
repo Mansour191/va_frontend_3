@@ -1,0 +1,398 @@
+# Shop GraphQL Schema
+# Comprehensive schema for shop management, statistics, and content operations
+
+# ========== FRAGMENTS ==========
+
+# Minimal product fragment for statistics (avoid loading full product data)
+fragment ProductSummaryFields on Product {
+  id
+  name
+  name_ar
+  name_en
+  status
+  price
+  stock
+  image
+  createdAt
+}
+
+fragment ProductDetailFields on Product {
+  id
+  name
+  name_ar
+  name_en
+  description
+  description_ar
+  description_en
+  price
+  compareAtPrice
+  cost
+  stock
+  sku
+  barcode
+  status
+  featured
+  image
+  images
+  category {
+    id
+    name
+    name_ar
+    name_en
+  }
+  materials {
+    id
+    name
+    name_ar
+    name_en
+  }
+  tags
+  seo {
+    title
+    description
+    keywords
+  }
+  createdAt
+  updatedAt
+}
+
+fragment PromotionSummaryFields on Promotion {
+  id
+  name
+  name_ar
+  name_en
+  description
+  description_ar
+  description_en
+  discount
+  discountType
+  startDate
+  endDate
+  status
+  usedCount
+  maxUses
+  minimumAmount
+  applicableProducts {
+    id
+    name
+  }
+  createdAt
+}
+
+fragment OrderSummaryFields on Order {
+  id
+  orderNumber
+  status
+  customer {
+    id
+    name
+    email
+    phone
+  }
+  total
+  subtotal
+  shippingCost
+  discountAmount
+  paymentMethod
+  createdAt
+  updatedAt
+}
+
+fragment ReviewSummaryFields on Review {
+  id
+  rating
+  comment
+  status
+  customer {
+    id
+    name
+    avatar
+  }
+  product {
+    id
+    name
+    name_ar
+    name_en
+    image
+  }
+  createdAt
+  updatedAt
+}
+
+fragment ShopStatisticsFields on ShopStatistics {
+  totalProducts
+  activeProducts
+  outOfStockProducts
+  draftProducts
+  totalCategories
+  activePromotions
+  averageRating
+  totalReviews
+  totalRevenue
+  todayOrders
+  todayRevenue
+  newCustomers
+  conversionRate
+  topProducts {
+    ...ProductSummaryFields
+  }
+  recentActivity {
+    type
+    description
+    timestamp
+  }
+}
+
+fragment SiteStatisticsFields on SiteStatistics {
+  totalProducts
+  totalCategories
+  totalPages
+  totalUsers
+  totalOrders
+  totalRevenue
+  averageOrderValue
+  conversionRate
+  bounceRate
+  pageViews
+  uniqueVisitors
+  topPages {
+    path
+    title
+    views
+  }
+  recentActivity {
+    type
+    description
+    timestamp
+  }
+}
+
+# ========== QUERIES ==========
+
+query GetShopStatistics {
+  shopStatistics {
+    ...ShopStatisticsFields
+  }
+}
+
+query GetSiteStatistics {
+  siteStatistics {
+    ...SiteStatisticsFields
+  }
+}
+
+query GetRecentProducts($limit: Int = 5, $status: String) {
+  recentProducts(limit: $limit, status: $status) {
+    ...ProductSummaryFields
+  }
+}
+
+query GetActivePromotions($limit: Int = 5) {
+  activePromotions(limit: $limit) {
+    ...PromotionSummaryFields
+  }
+}
+
+query GetRecentOrders($limit: Int = 5, $status: String) {
+  recentOrders(limit: $limit, status: $status) {
+    ...OrderSummaryFields
+  }
+}
+
+query GetRecentReviews($limit: Int = 5, $status: String) {
+  recentReviews(limit: $limit, status: $status) {
+    ...ReviewSummaryFields
+  }
+}
+
+query GetProductsCount($status: String, $categoryId: ID) {
+  productsCount(status: $status, categoryId: $categoryId)
+}
+
+query GetCategoriesCount($status: String) {
+  categoriesCount(status: $status)
+}
+
+query GetPagesCount($status: String) {
+  pagesCount(status: $status)
+}
+
+query GetUsersCount($role: String, $status: String) {
+  usersCount(role: $role, status: $status)
+}
+
+query GetShopAnalytics($period: String = "7d", $metrics: [String!]) {
+  shopAnalytics(period: $period, metrics: $metrics) {
+    period
+    metrics {
+      name
+      value
+      change
+      changeType
+    }
+    dailyStats {
+      date
+      revenue
+      orders
+      visitors
+      conversionRate
+    }
+    topProducts {
+      ...ProductSummaryFields
+      sales
+      revenue
+    }
+    topCategories {
+      id
+      name
+      name_ar
+      name_en
+      sales
+      revenue
+    }
+  }
+}
+
+query GetShopPerformanceMetrics {
+  shopPerformanceMetrics {
+    loadTime
+    searchTime
+    conversionRate
+    averageOrderValue
+    customerRetentionRate
+    inventoryTurnover
+    profitMargin
+    revenueGrowth
+    orderGrowth
+    customerGrowth
+  }
+}
+
+# ========== MUTATIONS ==========
+
+mutation ExportShopData($format: String = "csv", $filters: ShopDataFilters) {
+  exportShopData(format: $format, filters: $filters) {
+    success
+    downloadUrl
+    filename
+    size
+    expiresAt
+  }
+}
+
+mutation RefreshShopStatistics {
+  refreshShopStatistics {
+    success
+    message
+    refreshedAt
+  }
+}
+
+mutation RefreshSiteStatistics {
+  refreshSiteStatistics {
+    success
+    message
+    refreshedAt
+  }
+}
+
+mutation UpdateShopSettings($settings: ShopSettingsInput!) {
+  updateShopSettings(settings: $settings) {
+    success
+    message
+    settings {
+      currency
+      timezone
+      language
+      taxSettings {
+        enabled
+        rate
+        included
+      }
+      shippingSettings {
+        freeShippingThreshold
+        defaultCost
+      }
+    }
+  }
+}
+
+# ========== SUBSCRIPTIONS ==========
+
+subscription ShopStatisticsUpdated {
+  shopStatisticsUpdated {
+    ...ShopStatisticsFields
+  }
+}
+
+subscription SiteStatisticsUpdated {
+  siteStatisticsUpdated {
+    ...SiteStatisticsFields
+  }
+}
+
+subscription NewOrderReceived {
+  newOrderReceived {
+    ...OrderSummaryFields
+  }
+}
+
+subscription NewReviewSubmitted {
+  newReviewSubmitted {
+    ...ReviewSummaryFields
+  }
+}
+
+subscription ProductStatusChanged {
+  productStatusChanged {
+    productId
+    oldStatus
+    newStatus
+    timestamp
+  }
+}
+
+subscription PromotionActivated {
+  promotionActivated {
+    ...PromotionSummaryFields
+  }
+}
+
+# ========== INPUT TYPES ==========
+
+input ShopDataFilters {
+  dateRange: DateRangeInput
+  status: String
+  categoryId: ID
+  customerSegment: String
+  priceRange: PriceRangeInput
+}
+
+input ShopSettingsInput {
+  currency: String
+  timezone: String
+  language: String
+  taxSettings: TaxSettingsInput
+  shippingSettings: ShippingSettingsInput
+}
+
+input TaxSettingsInput {
+  enabled: Boolean
+  rate: Float
+  included: Boolean
+}
+
+input ShippingSettingsInput {
+  freeShippingThreshold: Float
+  defaultCost: Float
+}
+
+input DateRangeInput {
+  start: String
+  end: String
+}
+
+input PriceRangeInput {
+  min: Float
+  max: Float
+}

@@ -1,5 +1,6 @@
 import ERPNextService from './ERPNextService';
 import store from '@/store';
+import { safeJSONParse, safeJSONStringify } from '@/shared/utils/safeParser.js';
 
 class ProductSyncService {
   constructor() {
@@ -285,7 +286,7 @@ class ProductSyncService {
 
   updateProductSyncStatus(productId, status, error = '', erpnextCode = null) {
     const storageKey = 'erpnext_product_sync_status';
-    const current = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    const current = safeJSONParse(localStorage.getItem(storageKey), '{}', 'ProductSyncService.js:updateProductSyncStatus');
     current[productId] = {
       sync_status: status,
       erpnext_item_code: erpnextCode,
@@ -293,7 +294,7 @@ class ProductSyncService {
       synced_at: status === 'success' ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     };
-    localStorage.setItem(storageKey, JSON.stringify(current));
+    localStorage.setItem(storageKey, safeJSONStringify(current, '{}', 'ProductSyncService.js:updateProductSyncStatus'));
   }
 
   // تسجيل المزامنة في Vuex

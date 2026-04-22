@@ -41,7 +41,7 @@ export const ALL_GROUPS_QUERY = gql`
 
 // Query for groups with member count
 export const GROUPS_WITH_MEMBER_COUNT_QUERY = gql`
- GroupsWithMemberCount {
+  query GroupsWithMemberCount {
     allGroups {
       edges {
         node {

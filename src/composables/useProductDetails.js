@@ -318,11 +318,6 @@ export const useProductDetails = () => {
     return statusMap[status] || status;
   };
 
-  const selectVariant = (variant) => {
-    productDetailsState.selectedVariant = variant;
-    updatePriceBreakdown();
-    console.log('✅ Variant selected:', variant);
-  };
 
   const clearVariantSelection = () => {
     productDetailsState.selectedVariant = null;

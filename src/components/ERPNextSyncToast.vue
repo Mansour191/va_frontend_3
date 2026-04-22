@@ -156,7 +156,16 @@ export default {
       showToast.value = false
     }
 
+    const isRetryingSync = ref(false)
+    
     const retrySync = () => {
+      if (isRetryingSync.value) {
+        console.log('⚠️ Sync retry already in progress')
+        return
+      }
+      
+      isRetryingSync.value = true
+      
       // Emit retry event or call retry function
       if (lastFailedSync.value) {
         // This would typically trigger a retry of the failed sync
@@ -167,6 +176,11 @@ export default {
         )
       }
       showToast.value = false
+      
+      // Reset retry state after delay
+      setTimeout(() => {
+        isRetryingSync.value = false
+      }, 3000)
     }
 
     const monitorSyncFailures = () => {

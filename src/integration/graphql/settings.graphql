@@ -1,0 +1,313 @@
+import { gql } from '@apollo/client';
+import {
+  USER_PROFILE_FRAGMENT,
+  TIMESTAMPS_FRAGMENT
+} from './fragments.graphql';
+
+// ========================================
+// SETTINGS FRAGMENTS
+// ========================================
+
+// Profile Settings Fragment (8 fields)
+export const PROFILE_SETTINGS_FRAGMENT = gql`
+  fragment ProfileSettings on User {
+    id
+    firstName
+    lastName
+    email
+    phone
+    bio
+    avatar
+    dateOfBirth
+    gender
+  }
+`;
+
+// Privacy Settings Fragment (7 fields)
+export const PRIVACY_SETTINGS_FRAGMENT = gql`
+  fragment PrivacySettings on User {
+    id
+    privateProfile
+    allowSearch
+    showFriends
+    showEmail
+    showPhone
+    allowMessages
+    showOnlineStatus
+  }
+`;
+
+// Security Settings Fragment (5 fields)
+export const SECURITY_SETTINGS_FRAGMENT = gql`
+  fragment SecuritySettings on User {
+    id
+    twoFactorEnabled
+    emailNotifications
+    smsNotifications
+    loginAlerts
+    sessionTimeout
+  }
+`;
+
+// Preferences Fragment (8 fields)
+export const PREFERENCES_FRAGMENT = gql`
+  fragment Preferences on User {
+    id
+    language
+    theme
+    currency
+    timezone
+    dateFormat
+    timeFormat
+    notifications
+    marketingEmails
+  }
+`;
+
+// All Settings Combined (28 fields)
+export const ALL_SETTINGS_FRAGMENT = gql`
+  fragment AllSettings on User {
+    ...ProfileSettings
+    ...PrivacySettings
+    ...SecuritySettings
+    ...Preferences
+  }
+  ${PROFILE_SETTINGS_FRAGMENT}
+  ${PRIVACY_SETTINGS_FRAGMENT}
+  ${SECURITY_SETTINGS_FRAGMENT}
+  ${PREFERENCES_FRAGMENT}
+`;
+
+// ========================================
+// SETTINGS QUERIES
+// ========================================
+
+// Get Profile Settings Query
+export const GET_PROFILE_SETTINGS_QUERY = gql`
+  query GetProfileSettings {
+    me {
+      ...ProfileSettings
+    }
+  }
+  ${PROFILE_SETTINGS_FRAGMENT}
+`;
+
+// Get Privacy Settings Query
+export const GET_PRIVACY_SETTINGS_QUERY = gql`
+  query GetPrivacySettings {
+    me {
+      ...PrivacySettings
+    }
+  }
+  ${PRIVACY_SETTINGS_FRAGMENT}
+`;
+
+// Get Security Settings Query
+export const GET_SECURITY_SETTINGS_QUERY = gql`
+  query GetSecuritySettings {
+    me {
+      ...SecuritySettings
+    }
+  }
+  ${SECURITY_SETTINGS_FRAGMENT}
+`;
+
+// Get Preferences Query
+export const GET_PREFERENCES_QUERY = gql`
+  query GetPreferences {
+    me {
+      ...Preferences
+    }
+  }
+  ${PREFERENCES_FRAGMENT}
+`;
+
+// Get All Settings Query
+export const GET_ALL_SETTINGS_QUERY = gql`
+  query GetAllSettings {
+    me {
+      ...AllSettings
+    }
+  }
+  ${ALL_SETTINGS_FRAGMENT}
+`;
+
+// ========================================
+// SETTINGS MUTATIONS
+// ========================================
+
+// Update Profile Settings Mutation
+export const UPDATE_PROFILE_SETTINGS_MUTATION = gql`
+  mutation UpdateProfileSettings($input: ProfileSettingsInput!) {
+    updateProfileSettings(input: $input) {
+      success
+      message
+      user {
+        ...ProfileSettings
+      }
+    }
+  }
+  ${PROFILE_SETTINGS_FRAGMENT}
+`;
+
+// Update Privacy Settings Mutation
+export const UPDATE_PRIVACY_SETTINGS_MUTATION = gql`
+  mutation UpdatePrivacySettings($input: PrivacySettingsInput!) {
+    updatePrivacySettings(input: $input) {
+      success
+      message
+      user {
+        ...PrivacySettings
+      }
+    }
+  }
+  ${PRIVACY_SETTINGS_FRAGMENT}
+`;
+
+// Update Security Settings Mutation
+export const UPDATE_SECURITY_SETTINGS_MUTATION = gql`
+  mutation UpdateSecuritySettings($input: SecuritySettingsInput!) {
+    updateSecuritySettings(input: $input) {
+      success
+      message
+      user {
+        ...SecuritySettings
+      }
+    }
+  }
+  ${SECURITY_SETTINGS_FRAGMENT}
+`;
+
+// Update Preferences Mutation
+export const UPDATE_PREFERENCES_MUTATION = gql`
+  mutation UpdatePreferences($input: PreferencesInput!) {
+    updatePreferences(input: $input) {
+      success
+      message
+      user {
+        ...Preferences
+      }
+    }
+  }
+  ${PREFERENCES_FRAGMENT}
+`;
+
+// Change Password Mutation
+export const CHANGE_PASSWORD_MUTATION = gql`
+  mutation ChangePassword($input: ChangePasswordInput!) {
+    changePassword(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
+// Update All Settings Mutation
+export const UPDATE_ALL_SETTINGS_MUTATION = gql`
+  mutation UpdateAllSettings($input: AllSettingsInput!) {
+    updateAllSettings(input: $input) {
+      success
+      message
+      user {
+        ...AllSettings
+      }
+    }
+  }
+  ${ALL_SETTINGS_FRAGMENT}
+`;
+
+// ========================================
+// SETTINGS SUBSCRIPTIONS
+// ========================================
+
+// Settings Update Subscription
+export const SETTINGS_UPDATE_SUBSCRIPTION = gql`
+  subscription OnSettingsUpdate {
+    settingsUpdated {
+      type
+      user {
+        ...AllSettings
+      }
+      timestamp
+    }
+  }
+  ${ALL_SETTINGS_FRAGMENT}
+`;
+
+// Profile Update Subscription
+export const PROFILE_UPDATE_SUBSCRIPTION = gql`
+  subscription OnProfileUpdate {
+    profileUpdated {
+      user {
+        ...ProfileSettings
+      }
+      timestamp
+    }
+  }
+  ${PROFILE_SETTINGS_FRAGMENT}
+`;
+
+// ========================================
+// INPUT TYPES (for reference)
+// ========================================
+
+/*
+input ProfileSettingsInput {
+  firstName: String
+  lastName: String
+  email: String
+  phone: String
+  bio: String
+  avatar: String
+  dateOfBirth: DateTime
+  gender: Gender
+}
+
+input PrivacySettingsInput {
+  privateProfile: Boolean
+  allowSearch: Boolean
+  showFriends: Boolean
+  showEmail: Boolean
+  showPhone: Boolean
+  allowMessages: Boolean
+  showOnlineStatus: Boolean
+}
+
+input SecuritySettingsInput {
+  twoFactorEnabled: Boolean
+  emailNotifications: Boolean
+  smsNotifications: Boolean
+  loginAlerts: Boolean
+  sessionTimeout: Int
+}
+
+input PreferencesInput {
+  language: String
+  theme: String
+  currency: String
+  timezone: String
+  dateFormat: String
+  timeFormat: String
+  notifications: Boolean
+  marketingEmails: Boolean
+}
+
+input ChangePasswordInput {
+  currentPassword: String!
+  newPassword: String!
+  confirmPassword: String!
+}
+
+input AllSettingsInput {
+  profile: ProfileSettingsInput
+  privacy: PrivacySettingsInput
+  security: SecuritySettingsInput
+  preferences: PreferencesInput
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+*/

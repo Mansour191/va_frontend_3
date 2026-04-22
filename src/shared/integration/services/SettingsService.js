@@ -1,19 +1,38 @@
 /**
  * SettingsService.js
- * خدمة إدارة إعدادات المستخدم الشخصية والخصوصية والأمان
- * تتولى هذه الخدمة الربط مع API لإدارة جميع إعدادات المستخدم
+ * GraphQL-based service for managing user profile, privacy, and security settings
+ * This service handles all user settings through GraphQL queries and mutations
  */
+
+import { useQuery, useMutation } from '@vue/apollo-composable';
+import { useSubscriptionManager } from '@/composables/useSubscriptionManager';
+import {
+  GET_PROFILE_SETTINGS_QUERY,
+  GET_PRIVACY_SETTINGS_QUERY,
+  GET_SECURITY_SETTINGS_QUERY,
+  GET_PREFERENCES_QUERY,
+  GET_ALL_SETTINGS_QUERY,
+  UPDATE_PROFILE_SETTINGS_MUTATION,
+  UPDATE_PRIVACY_SETTINGS_MUTATION,
+  UPDATE_SECURITY_SETTINGS_MUTATION,
+  UPDATE_PREFERENCES_MUTATION,
+  CHANGE_PASSWORD_MUTATION,
+  UPDATE_ALL_SETTINGS_MUTATION,
+  SETTINGS_UPDATE_SUBSCRIPTION,
+  PROFILE_UPDATE_SUBSCRIPTION
+} from '@/integration/graphql/settings.graphql';
 
 class SettingsService {
   constructor() {
-    this.apiEndpoint = import.meta.env.VITE_API_URL || 'https://api.vinylart.dz';
     this.cache = new Map();
-    this.cacheTTL = 10 * 60 * 1000; // 10 دقائق
+    this.cacheTTL = 10 * 60 * 1000; // 10 minutes
+    this.serviceName = 'SettingsService';
+    this.subscriptionManager = useSubscriptionManager(this.serviceName);
   }
 
   /**
-   * جلب إعدادات الملف الشخصي للمستخدم
-   * @returns {Promise<Object>} - إعدادات الملف الشخصي
+   * Get user profile settings
+   * @returns {Promise<Object>} - Profile settings
    */
   async getProfileSettings() {
     const cacheKey = 'profile_settings';
@@ -23,60 +42,72 @@ class SettingsService {
     }
 
     try {
-      const url = `${this.apiEndpoint}/user/profile/settings/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        }
+      const { result } = await new Promise((resolve, reject) => {
+        const { result, error, loading } = useQuery(GET_PROFILE_SETTINGS_QUERY);
+        
+        const unwatch = this.subscriptionManager.trackWatcher(
+          'profile_settings_query',
+          () => {
+            if (!loading.value) {
+              if (error.value) {
+                reject(error.value);
+              } else if (result.value) {
+                resolve({ result: result.value });
+              }
+              unwatch();
+            }
+          }
+        );
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.me) {
+        const settings = this._transformProfileSettings(result.me);
+        this._setCache(cacheKey, settings);
+        return settings;
+      } else {
+        throw new Error('No profile settings data received');
       }
-
-      const data = await response.json();
-      const settings = this._transformProfileSettings(data);
-      
-      this._setCache(cacheKey, settings);
-      return settings;
     } catch (error) {
-      console.error('❌ Error fetching profile settings:', error);
+      console.error('Error fetching profile settings:', error);
       return this.getFallbackProfileSettings();
     }
   }
 
   /**
-   * تحديث إعدادات الملف الشخصي
-   * @param {Object} settingsData - بيانات الإعدادات
-   * @returns {Promise<Object>} - الإعدادات المحدثة
+   * Update profile settings
+   * @param {Object} settingsData - Settings data
+   * @returns {Promise<Object>} - Updated settings
    */
   async updateProfileSettings(settingsData) {
     try {
-      const url = `${this.apiEndpoint}/user/profile/settings/`;
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._prepareProfileSettingsData(settingsData))
+      const { result } = await new Promise((resolve, reject) => {
+        const { mutate, onDone, onError } = useMutation(UPDATE_PROFILE_SETTINGS_MUTATION);
+        
+        mutate({
+          input: this._prepareProfileSettingsData(settingsData)
+        });
+
+        onDone((response) => {
+          resolve({ result: response.data });
+        });
+
+        onError((error) => {
+          reject(error);
+        });
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.updateProfileSettings?.user) {
+        const settings = this._transformProfileSettings(result.updateProfileSettings.user);
+        
+        // Clear cache to force refresh
+        this.cache.delete('profile_settings');
+        
+        return settings;
+      } else {
+        throw new Error('Failed to update profile settings');
       }
-
-      const data = await response.json();
-      const settings = this._transformProfileSettings(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('profile_settings');
-      
-      return settings;
     } catch (error) {
-      console.error('❌ Error updating profile settings:', error);
+      console.error('Error updating profile settings:', error);
       throw error;
     }
   }
@@ -93,24 +124,31 @@ class SettingsService {
     }
 
     try {
-      const url = `${this.apiEndpoint}/user/privacy/settings/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        }
+      const { result } = await new Promise((resolve, reject) => {
+        const { result, error, loading } = useQuery(GET_PRIVACY_SETTINGS_QUERY);
+        
+        const unwatch = this.subscriptionManager.trackWatcher(
+          'privacy_settings_query',
+          () => {
+            if (!loading.value) {
+              if (error.value) {
+                reject(error.value);
+              } else if (result.value) {
+                resolve({ result: result.value });
+              }
+              unwatch();
+            }
+          }
+        );
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.me) {
+        const settings = this._transformPrivacySettings(result.me);
+        this._setCache(cacheKey, settings);
+        return settings;
+      } else {
+        throw new Error('No privacy settings data received');
       }
-
-      const data = await response.json();
-      const settings = this._transformPrivacySettings(data);
-      
-      this._setCache(cacheKey, settings);
-      return settings;
     } catch (error) {
       console.error('❌ Error fetching privacy settings:', error);
       return this.getFallbackPrivacySettings();
@@ -124,27 +162,32 @@ class SettingsService {
    */
   async updatePrivacySettings(settingsData) {
     try {
-      const url = `${this.apiEndpoint}/user/privacy/settings/`;
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._preparePrivacySettingsData(settingsData))
+      const { result } = await new Promise((resolve, reject) => {
+        const { mutate, onDone, onError } = useMutation(UPDATE_PRIVACY_SETTINGS_MUTATION);
+        
+        mutate({
+          input: this._preparePrivacySettingsData(settingsData)
+        });
+
+        onDone((response) => {
+          resolve({ result: response.data });
+        });
+
+        onError((error) => {
+          reject(error);
+        });
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.updatePrivacySettings?.user) {
+        const settings = this._transformPrivacySettings(result.updatePrivacySettings.user);
+        
+        // Clear cache to force refresh
+        this.cache.delete('privacy_settings');
+        
+        return settings;
+      } else {
+        throw new Error('Failed to update privacy settings');
       }
-
-      const data = await response.json();
-      const settings = this._transformPrivacySettings(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('privacy_settings');
-      
-      return settings;
     } catch (error) {
       console.error('❌ Error updating privacy settings:', error);
       throw error;
@@ -163,24 +206,31 @@ class SettingsService {
     }
 
     try {
-      const url = `${this.apiEndpoint}/user/security/settings/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        }
+      const { result } = await new Promise((resolve, reject) => {
+        const { result, error, loading } = useQuery(GET_SECURITY_SETTINGS_QUERY);
+        
+        const unwatch = this.subscriptionManager.trackWatcher(
+          'security_settings_query',
+          () => {
+            if (!loading.value) {
+              if (error.value) {
+                reject(error.value);
+              } else if (result.value) {
+                resolve({ result: result.value });
+              }
+              unwatch();
+            }
+          }
+        );
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.me) {
+        const settings = this._transformSecuritySettings(result.me);
+        this._setCache(cacheKey, settings);
+        return settings;
+      } else {
+        throw new Error('No security settings data received');
       }
-
-      const data = await response.json();
-      const settings = this._transformSecuritySettings(data);
-      
-      this._setCache(cacheKey, settings);
-      return settings;
     } catch (error) {
       console.error('❌ Error fetching security settings:', error);
       return this.getFallbackSecuritySettings();
@@ -194,27 +244,32 @@ class SettingsService {
    */
   async updateSecuritySettings(settingsData) {
     try {
-      const url = `${this.apiEndpoint}/user/security/settings/`;
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._prepareSecuritySettingsData(settingsData))
+      const { result } = await new Promise((resolve, reject) => {
+        const { mutate, onDone, onError } = useMutation(UPDATE_SECURITY_SETTINGS_MUTATION);
+        
+        mutate({
+          input: this._prepareSecuritySettingsData(settingsData)
+        });
+
+        onDone((response) => {
+          resolve({ result: response.data });
+        });
+
+        onError((error) => {
+          reject(error);
+        });
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.updateSecuritySettings?.user) {
+        const settings = this._transformSecuritySettings(result.updateSecuritySettings.user);
+        
+        // Clear cache to force refresh
+        this.cache.delete('security_settings');
+        
+        return settings;
+      } else {
+        throw new Error('Failed to update security settings');
       }
-
-      const data = await response.json();
-      const settings = this._transformSecuritySettings(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('security_settings');
-      
-      return settings;
     } catch (error) {
       console.error('❌ Error updating security settings:', error);
       throw error;
@@ -233,24 +288,31 @@ class SettingsService {
     }
 
     try {
-      const url = `${this.apiEndpoint}/user/preferences/`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        }
+      const { result } = await new Promise((resolve, reject) => {
+        const { result, error, loading } = useQuery(GET_PREFERENCES_QUERY);
+        
+        const unwatch = this.subscriptionManager.trackWatcher(
+          'preferences_query',
+          () => {
+            if (!loading.value) {
+              if (error.value) {
+                reject(error.value);
+              } else if (result.value) {
+                resolve({ result: result.value });
+              }
+              unwatch();
+            }
+          }
+        );
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.me) {
+        const preferences = this._transformPreferences(result.me);
+        this._setCache(cacheKey, preferences);
+        return preferences;
+      } else {
+        throw new Error('No preferences data received');
       }
-
-      const data = await response.json();
-      const preferences = this._transformPreferences(data);
-      
-      this._setCache(cacheKey, preferences);
-      return preferences;
     } catch (error) {
       console.error('❌ Error fetching preferences:', error);
       return this.getFallbackPreferences();
@@ -264,27 +326,32 @@ class SettingsService {
    */
   async updatePreferences(preferencesData) {
     try {
-      const url = `${this.apiEndpoint}/user/preferences/`;
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(this._preparePreferencesData(preferencesData))
+      const { result } = await new Promise((resolve, reject) => {
+        const { mutate, onDone, onError } = useMutation(UPDATE_PREFERENCES_MUTATION);
+        
+        mutate({
+          input: this._preparePreferencesData(preferencesData)
+        });
+
+        onDone((response) => {
+          resolve({ result: response.data });
+        });
+
+        onError((error) => {
+          reject(error);
+        });
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.updatePreferences?.user) {
+        const preferences = this._transformPreferences(result.updatePreferences.user);
+        
+        // Clear cache to force refresh
+        this.cache.delete('preferences');
+        
+        return preferences;
+      } else {
+        throw new Error('Failed to update preferences');
       }
-
-      const data = await response.json();
-      const preferences = this._transformPreferences(data);
-      
-      // Clear cache to force refresh
-      this.cache.delete('preferences');
-      
-      return preferences;
     } catch (error) {
       console.error('❌ Error updating preferences:', error);
       throw error;
@@ -292,33 +359,39 @@ class SettingsService {
   }
 
   /**
-   * تغيير كلمة المرور
-   * @param {Object} passwordData - بيانات كلمة المرور
-   * @returns {Promise<boolean>} - نجاح العملية
+   * Change password
+   * @param {Object} passwordData - Password data
+   * @returns {Promise<boolean>} - Success status
    */
   async changePassword(passwordData) {
     try {
-      const url = `${this.apiEndpoint}/user/change-password/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this._getAuthToken()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          current_password: passwordData.currentPassword,
-          new_password: passwordData.newPassword,
-          confirm_password: passwordData.confirmPassword
-        })
+      const { result } = await new Promise((resolve, reject) => {
+        const { mutate, onDone, onError } = useMutation(CHANGE_PASSWORD_MUTATION);
+        
+        mutate({
+          input: {
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword,
+            confirmPassword: passwordData.confirmPassword
+          }
+        });
+
+        onDone((response) => {
+          resolve({ result: response.data });
+        });
+
+        onError((error) => {
+          reject(error);
+        });
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (result?.changePassword?.success) {
+        return true;
+      } else {
+        throw new Error('Failed to change password');
       }
-
-      return true;
     } catch (error) {
-      console.error('❌ Error changing password:', error);
+      console.error('Error changing password:', error);
       throw error;
     }
   }
@@ -508,10 +581,10 @@ class SettingsService {
   }
 
   /**
-   * الحصول على توكن المصادقة
+   * Get authentication token using TokenManager
    */
   _getAuthToken() {
-    return localStorage.getItem('authToken') || 'mock-token';
+    return localStorage.getItem('token') || 'mock-token';
   }
 
   /**
